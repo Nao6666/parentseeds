@@ -28,7 +28,7 @@ ${conversationHistory}
 ${message}
 
 親身になって、具体的で役立つ回答をしてください。
-回答に関しては、100文字程度に簡潔にまとめてください。
+回答に関しては、50文字程度に簡潔にまとめてください。
 `;
 
     const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
