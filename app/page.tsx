@@ -776,58 +776,70 @@ export default function ParentSeedApp() {
                 <CardContent>
                   <div className="space-y-4">
                     {/* チャット履歴 */}
-                    <div className="h-80 overflow-y-auto border rounded-lg p-3 space-y-3 bg-gray-50">
-                      {chatMessages.map((message) => (
-                        <div
-                          key={message.id}
-                          className={`flex gap-2 ${message.role === "user" ? "justify-end" : "justify-start"}`}
-                        >
+                    <div className="h-96 overflow-y-auto border rounded-lg p-4 space-y-4 bg-gray-50/50">
+                      {chatMessages.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">
+                          <Bot className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                          <p className="text-sm">メッセージを送信して会話を始めましょう</p>
+                        </div>
+                      ) : (
+                        chatMessages.map((message) => (
                           <div
-                            className={`flex gap-2 max-w-[85%] ${
-                              message.role === "user" ? "flex-row-reverse" : "flex-row"
-                            }`}
+                            key={message.id}
+                            className={`flex gap-3 ${message.role === "user" ? "justify-end" : "justify-start"}`}
                           >
-                            <Avatar className="w-8 h-8 flex-shrink-0">
-                              {message.role === "user" ? (
-                                <AvatarFallback className="bg-pink-500 text-white">
-                                  <User className="w-4 h-4" />
-                                </AvatarFallback>
-                              ) : (
-                                <AvatarFallback className="bg-blue-500 text-white">
-                                  <Bot className="w-4 h-4" />
-                                </AvatarFallback>
-                              )}
-                            </Avatar>
                             <div
-                              className={`p-3 rounded-lg ${
-                                message.role === "user"
-                                  ? "bg-pink-500 text-white"
-                                  : "bg-white border border-gray-200 text-gray-800"
+                              className={`flex gap-3 max-w-[80%] ${
+                                message.role === "user" ? "flex-row-reverse" : "flex-row"
                               }`}
                             >
-                              <p className="text-sm leading-relaxed">{message.content}</p>
-                              <p
-                                className={`text-xs mt-1 ${message.role === "user" ? "text-pink-100" : "text-gray-500"}`}
+                              <Avatar className="w-10 h-10 flex-shrink-0">
+                                {message.role === "user" ? (
+                                  <AvatarFallback className="bg-pink-500 text-white">
+                                    <User className="w-5 h-5" />
+                                  </AvatarFallback>
+                                ) : (
+                                  <AvatarFallback className="bg-blue-500 text-white">
+                                    <Bot className="w-5 h-5" />
+                                  </AvatarFallback>
+                                )}
+                              </Avatar>
+                              <div
+                                className={`p-4 rounded-2xl shadow-sm ${
+                                  message.role === "user"
+                                    ? "bg-gradient-to-r from-pink-500 to-pink-600 text-white"
+                                    : "bg-white border border-gray-200 text-gray-800"
+                                }`}
                               >
-                                {message.timestamp.toLocaleTimeString("ja-JP", {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}
-                              </p>
+                                <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                                <p
+                                  className={`text-xs mt-2 ${message.role === "user" ? "text-pink-100" : "text-gray-400"}`}
+                                >
+                                  {message.timestamp.toLocaleTimeString("ja-JP", {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })}
+                                </p>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        ))
+                      )}
                       {isChatLoading && (
-                        <div className="flex gap-2 justify-start">
-                          <div className="flex gap-2">
-                            <Avatar className="w-8 h-8">
+                        <div className="flex gap-3 justify-start">
+                          <div className="flex gap-3">
+                            <Avatar className="w-10 h-10">
                               <AvatarFallback className="bg-blue-500 text-white">
-                                <Bot className="w-4 h-4" />
+                                <Bot className="w-5 h-5" />
                               </AvatarFallback>
                             </Avatar>
-                            <div className="bg-white border border-gray-200 text-gray-800 p-3 rounded-lg">
-                              <p className="text-sm">考え中...</p>
+                            <div className="bg-white border border-gray-200 text-gray-800 p-4 rounded-2xl shadow-sm">
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
+                                <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                                <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                                <span className="text-sm">考え中...</span>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -835,16 +847,21 @@ export default function ParentSeedApp() {
                     </div>
 
                     {/* チャット入力 */}
-                    <div className="flex gap-2">
+                    <div className="flex gap-3 p-3 bg-white border rounded-lg shadow-sm">
                       <Input
-                        placeholder="悩みや気持ちを入力..."
+                        placeholder="悩みや気持ちを入力してください..."
                         value={chatInput}
                         onChange={(e) => setChatInput(e.target.value)}
                         onKeyPress={(e) => e.key === "Enter" && !e.shiftKey && sendChatMessage()}
                         disabled={isChatLoading}
-                        className="text-base"
+                        className="text-base border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
                       />
-                      <Button onClick={sendChatMessage} disabled={!chatInput.trim() || isChatLoading} className="px-4">
+                      <Button 
+                        onClick={sendChatMessage} 
+                        disabled={!chatInput.trim() || isChatLoading} 
+                        className="px-6 bg-blue-500 hover:bg-blue-600"
+                        size="sm"
+                      >
                         <Send className="w-4 h-4" />
                       </Button>
                     </div>
