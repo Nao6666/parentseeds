@@ -1,6 +1,8 @@
-"use client"
+"use client";
 
-import { useState } from "react"
+export const dynamic = 'force-dynamic';
+
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -52,7 +54,6 @@ import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
 import LoginForm from "@/components/LoginForm";
 import React from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import Logo from "@/components/Logo";
