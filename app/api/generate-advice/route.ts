@@ -5,7 +5,7 @@ export async function POST(request: NextRequest) {
     const { emotions, content } = await request.json();
 
     const prompt = `
-あなたは育児専門のAIカウンセラーです。新米親の感情に寄り添い、温かく具体的なアドバイスを提供してください。
+あなたは育児やコーチングのプロフェッショナルです。新米親の感情に寄り添い、温かく具体的なアドバイスを提供してください。
 
 感情: ${emotions.join(", ")}
 内容: ${content}
