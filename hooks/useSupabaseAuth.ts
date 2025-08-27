@@ -27,18 +27,26 @@ export function useSupabaseAuth() {
     setLoading(true);
     setError(null);
     
+    console.log('Attempting signup with email:', email); // デバッグ用
+    
     const { error } = await supabase.auth.signUp({ email, password });
     setLoading(false);
     
     if (error) {
-      // Supabaseのエラーメッセージを日本語化
-      console.log('SignUp error:', error.message); // デバッグ用
+      // デバッグ用：実際のエラーメッセージをログ出力
+      console.log('SignUp error details:', {
+        message: error.message,
+        status: error.status,
+        name: error.name
+      });
       
+      // Supabaseのエラーメッセージを日本語化
       if (error.message.includes("already registered") || 
           error.message.includes("already been registered") ||
           error.message.includes("already exists") ||
           error.message.includes("already confirmed") ||
-          error.message.includes("User already registered")) {
+          error.message.includes("User already registered") ||
+          error.message.includes("already signed up")) {
         setError("このメールアドレスは既に登録されています。");
       } else if (error.message.includes("password")) {
         setError("パスワードは6文字以上で入力してください。");
@@ -47,6 +55,8 @@ export function useSupabaseAuth() {
       } else {
         setError(error.message);
       }
+    } else {
+      console.log('SignUp successful, no error'); // デバッグ用
     }
     return error;
   }, []);
