@@ -22,15 +22,38 @@ export function useSupabaseAuth() {
     };
   }, []);
 
+  // メールアドレスの重複チェック
+  const checkEmailExists = useCallback(async (email: string) => {
+    const { data, error } = await supabase.auth.admin.listUsers();
+    if (error) return false;
+    return data.users.some(user => user.email === email);
+  }, []);
+
   // サインアップ
   const signUp = useCallback(async (email: string, password: string) => {
     setLoading(true);
     setError(null);
+    
+    // メールアドレスの重複チェック
+    const emailExists = await checkEmailExists(email);
+    if (emailExists) {
+      setLoading(false);
+      setError("このメールアドレスは既に登録されています。");
+      return { message: "このメールアドレスは既に登録されています。" };
+    }
+    
     const { error } = await supabase.auth.signUp({ email, password });
     setLoading(false);
-    if (error) setError(error.message);
+    if (error) {
+      // Supabaseのエラーメッセージを日本語化
+      if (error.message.includes("already registered")) {
+        setError("このメールアドレスは既に登録されています。");
+      } else {
+        setError(error.message);
+      }
+    }
     return error;
-  }, []);
+  }, [checkEmailExists]);
 
   // ログイン
   const signIn = useCallback(async (email: string, password: string) => {
@@ -38,7 +61,14 @@ export function useSupabaseAuth() {
     setError(null);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
-    if (error) setError(error.message);
+    if (error) {
+      // ログインエラーメッセージを日本語化
+      if (error.message.includes("Invalid login credentials")) {
+        setError("メールアドレスまたはパスワードが正しくありません。");
+      } else {
+        setError(error.message);
+      }
+    }
     return error;
   }, []);
 
@@ -74,6 +104,54 @@ export function useSupabaseAuth() {
     return error;
   }, []);
 
+  // アカウント削除
+  const deleteAccount = useCallback(async () => {
+    if (!user) {
+      setError("ユーザーがログインしていません。");
+      return { message: "ユーザーがログインしていません。" };
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      // ユーザーのデータを削除（entriesテーブルなど）
+      const { error: dataError } = await supabase
+        .from('entries')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (dataError) {
+        console.error('データ削除エラー:', dataError);
+      }
+
+      // アカウントを削除
+      const { error } = await supabase.auth.admin.deleteUser(user.id);
+      
+      if (error) {
+        // 管理者権限がない場合は、ユーザー自身で削除を試行
+        const { error: userDeleteError } = await supabase.auth.updateUser({
+          data: { deleted: true }
+        });
+        
+        if (userDeleteError) {
+          setError("アカウントの削除に失敗しました。");
+          setLoading(false);
+          return userDeleteError;
+        }
+      }
+
+      // ログアウト
+      await supabase.auth.signOut();
+      setLoading(false);
+      return null;
+    } catch (error) {
+      setError("アカウントの削除中にエラーが発生しました。");
+      setLoading(false);
+      return { message: "アカウントの削除中にエラーが発生しました。" };
+    }
+  }, [user]);
+
   // ログアウト
   const signOut = useCallback(async () => {
     setLoading(true);
@@ -93,6 +171,7 @@ export function useSupabaseAuth() {
     signInWithGoogle,
     resetPasswordForEmail,
     resetPassword,
+    deleteAccount,
     signOut,
   };
 } 

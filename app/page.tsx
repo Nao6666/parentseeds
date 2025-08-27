@@ -55,6 +55,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { useToast } from "@/hooks/use-toast";
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import Logo from "@/components/Logo";
+import Link from "next/link";
 
 const emotionColors = {
   喜び: "bg-yellow-100 text-yellow-800 border-yellow-200",
@@ -427,7 +428,7 @@ export default function ParentSeedApp() {
               <p className="text-sm text-gray-600 hidden sm:block">あなたの感情を育て、親子の絆を深める</p>
             </div>
           </div>
-          <div className="flex-shrink-0">
+          <div className="flex-shrink-0 flex items-center gap-2">
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -436,6 +437,18 @@ export default function ParentSeedApp() {
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">ログアウト</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link href="/delete-account">
+                    <Button variant="outline" size="icon" className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                      <Trash2 className="w-5 h-5" />
+                    </Button>
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">アカウント削除</TooltipContent>
               </Tooltip>
             </TooltipProvider>
           </div>
