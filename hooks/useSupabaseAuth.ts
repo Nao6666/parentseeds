@@ -52,6 +52,28 @@ export function useSupabaseAuth() {
     return error;
   }, []);
 
+  // パスワードリセットメール送信
+  const resetPasswordForEmail = useCallback(async (email: string) => {
+    setLoading(true);
+    setError(null);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setLoading(false);
+    if (error) setError(error.message);
+    return error;
+  }, []);
+
+  // パスワードリセット
+  const resetPassword = useCallback(async (newPassword: string) => {
+    setLoading(true);
+    setError(null);
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    setLoading(false);
+    if (error) setError(error.message);
+    return error;
+  }, []);
+
   // ログアウト
   const signOut = useCallback(async () => {
     setLoading(true);
@@ -69,6 +91,8 @@ export function useSupabaseAuth() {
     signUp,
     signIn,
     signInWithGoogle,
+    resetPasswordForEmail,
+    resetPassword,
     signOut,
   };
 } 

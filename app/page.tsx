@@ -418,13 +418,13 @@ export default function ParentSeedApp() {
     <div className="min-h-screen bg-gradient-to-br from-pink-50 to-blue-50 flex flex-col items-center">
       {/* ヘッダー中央揃えラッパー */}
       <div className="w-full flex justify-center">
-        <div className="w-full max-w-md flex justify-between items-center bg-white shadow-sm border-b p-4">
+        <div className="w-full max-w-4xl flex justify-between items-center bg-white shadow-sm border-b p-4">
           <div className="flex-1">
             <div className="text-center space-y-2">
               <div className="flex items-center justify-center gap-2">
                 <Logo />
               </div>
-              <p className="text-sm text-gray-600">あなたの感情を育て、親子の絆を深める</p>
+              <p className="text-sm text-gray-600 hidden sm:block">あなたの感情を育て、親子の絆を深める</p>
             </div>
           </div>
           <div className="flex-shrink-0">
@@ -441,31 +441,31 @@ export default function ParentSeedApp() {
           </div>
         </div>
       </div>
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-4xl">
         <Tabs defaultValue="record" className="w-full">
           <div>
-            {/* モバイル向けタブナビゲーション */}
+            {/* レスポンシブタブナビゲーション */}
             <div className="bg-white border-b sticky top-0 z-10">
               <TabsList className="grid w-full grid-cols-5 h-16 bg-transparent">
-                <TabsTrigger value="record" className="flex flex-col items-center gap-1 text-xs">
+                <TabsTrigger value="record" className="flex flex-col items-center gap-1 text-xs sm:text-sm">
                   <MessageCircle className="w-5 h-5" />
-                  記録
+                  <span className="hidden sm:inline">記録</span>
                 </TabsTrigger>
-                <TabsTrigger value="history" className="flex flex-col items-center gap-1 text-xs">
+                <TabsTrigger value="history" className="flex flex-col items-center gap-1 text-xs sm:text-sm">
                   <Calendar className="w-5 h-5" />
-                  履歴
+                  <span className="hidden sm:inline">履歴</span>
                 </TabsTrigger>
-                <TabsTrigger value="insights" className="flex flex-col items-center gap-1 text-xs">
+                <TabsTrigger value="insights" className="flex flex-col items-center gap-1 text-xs sm:text-sm">
                   <Brain className="w-5 h-5" />
-                  分析
+                  <span className="hidden sm:inline">分析</span>
                 </TabsTrigger>
-                <TabsTrigger value="counselor" className="flex flex-col items-center gap-1 text-xs">
+                <TabsTrigger value="counselor" className="flex flex-col items-center gap-1 text-xs sm:text-sm">
                   <Video className="w-5 h-5" />
-                  相談
+                  <span className="hidden sm:inline">相談</span>
                 </TabsTrigger>
-                <TabsTrigger value="growth" className="flex flex-col items-center gap-1 text-xs">
+                <TabsTrigger value="growth" className="flex flex-col items-center gap-1 text-xs sm:text-sm">
                   <TrendingUp className="w-5 h-5" />
-                  成長
+                  <span className="hidden sm:inline">成長</span>
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -483,15 +483,15 @@ export default function ParentSeedApp() {
                 <CardContent className="space-y-6">
                   <div>
                     <label className="text-sm font-medium mb-4 block">今の気持ちは？</label>
-                    {/* 感情選択ボタン部分 */}
-                    <div className="grid grid-cols-2 gap-3">
+                    {/* 感情選択ボタン部分 - レスポンシブ対応 */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                       {emotions.map((emotion) => {
                         const IconComponent = emotionIcons[emotion as keyof typeof emotionIcons]
                         const isSelected = selectedEmotions.includes(emotion)
                         return (
                           <div
                             key={emotion}
-                            className={`relative cursor-pointer transition-all duration-200 border-2 rounded-xl p-2 h-14 flex flex-row items-center justify-center gap-2 active:scale-95 ${
+                            className={`relative cursor-pointer transition-all duration-200 border-2 rounded-xl p-2 h-14 sm:h-16 flex flex-row items-center justify-center gap-2 active:scale-95 ${
                               isSelected
                                 ? emotionColorsSelected[emotion as keyof typeof emotionColorsSelected]
                                 : emotionColors[emotion as keyof typeof emotionColors]
@@ -611,7 +611,7 @@ export default function ParentSeedApp() {
                 <CardContent>
                   <div className="space-y-4">
                     {/* コントロール */}
-                    <div className="flex gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2">
                       <Select value={chartPeriod} onValueChange={setChartPeriod}>
                         <SelectTrigger className="flex-1">
                           <SelectValue />
@@ -636,7 +636,7 @@ export default function ParentSeedApp() {
                     </div>
 
                     {/* グラフ */}
-                    <div className="h-64">
+                    <div className="h-64 sm:h-80 lg:h-96">
                       {chartType === "line" && safeTimeSeriesData.length > 0 ? (
                         <ResponsiveContainer width="100%" height="100%">
                           <LineChart data={safeTimeSeriesData}>
@@ -703,7 +703,7 @@ export default function ParentSeedApp() {
                 </CardContent>
               </Card>
 
-              <div className="grid gap-4">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-base">ストレスレベル</CardTitle>
@@ -742,7 +742,7 @@ export default function ParentSeedApp() {
                   <CardDescription className="text-sm">今週記録された感情の内訳</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                     {emotions.map((emotion) => {
                       const IconComponent = emotionIcons[emotion as keyof typeof emotionIcons]
                       const count = emotionStats.emotionTotals?.[emotion] ?? 0;
@@ -847,19 +847,19 @@ export default function ParentSeedApp() {
                     </div>
 
                     {/* チャット入力 */}
-                    <div className="flex gap-3 p-3 bg-white border rounded-lg shadow-sm">
+                    <div className="flex gap-2 sm:gap-3 p-3 bg-white border rounded-lg shadow-sm">
                       <Input
                         placeholder="悩みや気持ちを入力してください..."
                         value={chatInput}
                         onChange={(e) => setChatInput(e.target.value)}
                         onKeyPress={(e) => e.key === "Enter" && !e.shiftKey && sendChatMessage()}
                         disabled={isChatLoading}
-                        className="text-base border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                        className="text-base border-0 focus-visible:ring-0 focus-visible:ring-offset-0 flex-1"
                       />
                       <Button 
                         onClick={sendChatMessage} 
                         disabled={!chatInput.trim() || isChatLoading} 
-                        className="px-6 bg-blue-500 hover:bg-blue-600"
+                        className="px-3 sm:px-6 bg-blue-500 hover:bg-blue-600 flex-shrink-0"
                         size="sm"
                       >
                         <Send className="w-4 h-4" />
@@ -918,7 +918,7 @@ export default function ParentSeedApp() {
                       </div>
                     </div>
 
-                    <div className="space-y-4">
+                    <div className="space-y-4 sm:grid sm:grid-cols-2 sm:space-y-0 sm:gap-4">
                       <div className="p-4 border rounded-lg">
                         <h4 className="font-medium mb-2">感情コントロール力</h4>
                         <Progress value={controlPower} className="mb-2" />
