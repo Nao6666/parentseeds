@@ -22,10 +22,43 @@ export function useSupabaseAuth() {
     };
   }, []);
 
+  // メールアドレスの重複チェック
+  const checkEmailExists = useCallback(async (email: string) => {
+    try {
+      const response = await fetch('/api/check-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        return data.exists;
+      } else {
+        console.error('Email check failed:', data.error);
+        return false;
+      }
+    } catch (error) {
+      console.error('Email check error:', error);
+      return false;
+    }
+  }, []);
+
   // サインアップ
   const signUp = useCallback(async (email: string, password: string) => {
     setLoading(true);
     setError(null);
+    
+    // メールアドレスの重複チェック
+    const emailExists = await checkEmailExists(email);
+    if (emailExists) {
+      setLoading(false);
+      setError("このメールアドレスは既に登録されています。");
+      return { message: "このメールアドレスは既に登録されています。" };
+    }
     
     const { error } = await supabase.auth.signUp({ email, password });
     setLoading(false);
@@ -45,7 +78,7 @@ export function useSupabaseAuth() {
       }
     }
     return error;
-  }, []);
+  }, [checkEmailExists]);
 
   // ログイン
   const signIn = useCallback(async (email: string, password: string) => {
