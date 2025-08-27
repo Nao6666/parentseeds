@@ -22,38 +22,30 @@ export function useSupabaseAuth() {
     };
   }, []);
 
-  // メールアドレスの重複チェック
-  const checkEmailExists = useCallback(async (email: string) => {
-    const { data, error } = await supabase.auth.admin.listUsers();
-    if (error) return false;
-    return data.users.some(user => user.email === email);
-  }, []);
-
   // サインアップ
   const signUp = useCallback(async (email: string, password: string) => {
     setLoading(true);
     setError(null);
     
-    // メールアドレスの重複チェック
-    const emailExists = await checkEmailExists(email);
-    if (emailExists) {
-      setLoading(false);
-      setError("このメールアドレスは既に登録されています。");
-      return { message: "このメールアドレスは既に登録されています。" };
-    }
-    
     const { error } = await supabase.auth.signUp({ email, password });
     setLoading(false);
+    
     if (error) {
       // Supabaseのエラーメッセージを日本語化
-      if (error.message.includes("already registered")) {
+      if (error.message.includes("already registered") || 
+          error.message.includes("already been registered") ||
+          error.message.includes("already exists")) {
         setError("このメールアドレスは既に登録されています。");
+      } else if (error.message.includes("password")) {
+        setError("パスワードは6文字以上で入力してください。");
+      } else if (error.message.includes("email")) {
+        setError("有効なメールアドレスを入力してください。");
       } else {
         setError(error.message);
       }
     }
     return error;
-  }, [checkEmailExists]);
+  }, []);
 
   // ログイン
   const signIn = useCallback(async (email: string, password: string) => {
@@ -65,6 +57,8 @@ export function useSupabaseAuth() {
       // ログインエラーメッセージを日本語化
       if (error.message.includes("Invalid login credentials")) {
         setError("メールアドレスまたはパスワードが正しくありません。");
+      } else if (error.message.includes("Email not confirmed")) {
+        setError("メールアドレスの確認が完了していません。確認メールを確認してください。");
       } else {
         setError(error.message);
       }
