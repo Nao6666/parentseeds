@@ -22,12 +22,47 @@ export function useSupabaseAuth() {
     };
   }, []);
 
+  // メールアドレスの重複チェック（ログインを試行して確認）
+  const checkEmailExists = useCallback(async (email: string) => {
+    try {
+      // ダミーパスワードでログインを試行
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password: 'dummy_password_for_check'
+      });
+      
+      console.log('Email check result:', error?.message);
+      
+      // エラーメッセージから既存ユーザーかどうかを判断
+      if (error) {
+        if (error.message.includes('Invalid login credentials') || 
+            error.message.includes('Email not confirmed')) {
+          // ユーザーは存在するが、パスワードが間違っているか、メール確認が未完了
+          return true;
+        }
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Email check error:', error);
+      return false;
+    }
+  }, []);
+
   // サインアップ
   const signUp = useCallback(async (email: string, password: string) => {
     setLoading(true);
     setError(null);
     
     console.log('Attempting signup with email:', email); // デバッグ用
+    
+    // まずメールアドレスの重複チェック
+    const emailExists = await checkEmailExists(email);
+    if (emailExists) {
+      setLoading(false);
+      setError("このメールアドレスは既に登録されています。");
+      return { message: "このメールアドレスは既に登録されています。" };
+    }
     
     const { error } = await supabase.auth.signUp({ email, password });
     setLoading(false);
@@ -59,7 +94,7 @@ export function useSupabaseAuth() {
       console.log('SignUp successful, no error'); // デバッグ用
     }
     return error;
-  }, []);
+  }, [checkEmailExists]);
 
   // ログイン
   const signIn = useCallback(async (email: string, password: string) => {
