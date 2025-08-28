@@ -153,7 +153,7 @@ export function useSupabaseAuth() {
     return error;
   }, []);
 
-  // アカウント削除（一時的に簡素化）
+  // アカウント削除
   const deleteAccount = useCallback(async () => {
     if (!user) {
       setError("ユーザーがログインしていません。");
@@ -185,10 +185,32 @@ export function useSupabaseAuth() {
 
       console.log('Session found, token length:', session.access_token.length);
 
-      // 一時的にエラーメッセージを表示（API呼び出しを無効化）
-      setError("アカウント削除機能は現在メンテナンス中です。");
-      setLoading(false);
-      return { message: "アカウント削除機能は現在メンテナンス中です。" };
+      // APIエンドポイントを呼び出してテスト
+      console.log('Calling delete account API...');
+      const response = await fetch('/api/delete-account', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+      });
+
+      console.log('API response status:', response.status);
+      const data = await response.json();
+      console.log('API response data:', data);
+
+      if (response.ok) {
+        console.log('Account deletion successful, signing out...');
+        // 成功した場合はログアウト
+        await supabase.auth.signOut();
+        setLoading(false);
+        return null;
+      } else {
+        console.error('API error:', data.error);
+        setError(data.error || "アカウントの削除に失敗しました。");
+        setLoading(false);
+        return { message: data.error || "アカウントの削除に失敗しました。" };
+      }
       
     } catch (error) {
       console.error('Unexpected error:', error);
