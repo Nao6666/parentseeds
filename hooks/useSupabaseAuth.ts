@@ -173,6 +173,7 @@ export function useSupabaseAuth() {
       const sessionResult = await supabase.auth.getSession();
       session = sessionResult.data.session;
       sessionError = sessionResult.error;
+      console.log('Method 1 - Session result:', !!session, !!sessionError);
 
       // 方法2: セッションが取得できない場合は、現在のユーザーからセッションを再取得
       if (!session && user) {
@@ -180,6 +181,7 @@ export function useSupabaseAuth() {
         const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
         session = refreshedSession;
         sessionError = refreshError;
+        console.log('Method 2 - Refresh result:', !!session, !!refreshError);
       }
 
       // 方法3: ユーザーが存在するがセッションがない場合、強制的にセッションを取得
@@ -188,6 +190,7 @@ export function useSupabaseAuth() {
         const { data: { session: currentSession }, error: currentError } = await supabase.auth.getSession();
         session = currentSession;
         sessionError = currentError;
+        console.log('Method 3 - Current session result:', !!session, !!currentError);
       }
 
       if (sessionError) {
@@ -199,6 +202,13 @@ export function useSupabaseAuth() {
 
       if (!session?.access_token) {
         console.error('No access token found in session');
+        
+        // 最後の手段として、クッキーからトークンを取得を試行
+        console.log('Trying to get token from cookies...');
+        const cookies = document.cookie.split(';');
+        const supabaseToken = cookies.find(cookie => cookie.trim().startsWith('sb-'));
+        console.log('Supabase cookie found:', !!supabaseToken);
+        
         setError("認証トークンが見つかりません。再度ログインしてください。");
         setLoading(false);
         return { message: "認証トークンが見つかりません。再度ログインしてください。" };

@@ -32,17 +32,47 @@ export async function DELETE(request: NextRequest) {
     }
     
     // Authorization headerからトークンを取得
+    let token = null;
     const authHeader = request.headers.get('authorization');
     console.log('Auth header present:', !!authHeader);
     
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.error('Invalid or missing authorization header');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.replace('Bearer ', '');
+      console.log('Token from header, length:', token.length);
+    } else {
+      // Authorization headerがない場合、クッキーからトークンを取得
+      console.log('No auth header, trying cookies...');
+      const cookieHeader = request.headers.get('cookie');
+      console.log('Cookie header present:', !!cookieHeader);
+      
+      if (cookieHeader) {
+        const cookies = cookieHeader.split(';').reduce((acc, cookie) => {
+          const [key, value] = cookie.trim().split('=');
+          acc[key] = value;
+          return acc;
+        }, {} as Record<string, string>);
+        
+        // Supabaseのセッションクッキーを探す
+        const supabaseCookie = Object.keys(cookies).find(key => key.startsWith('sb-'));
+        console.log('Supabase cookie found:', !!supabaseCookie);
+        
+        if (supabaseCookie) {
+          try {
+            const cookieValue = decodeURIComponent(cookies[supabaseCookie]);
+            const sessionData = JSON.parse(cookieValue);
+            token = sessionData.access_token;
+            console.log('Token from cookie, length:', token?.length || 0);
+          } catch (error) {
+            console.error('Error parsing cookie:', error);
+          }
+        }
+      }
+    }
+    
+    if (!token) {
+      console.error('No token found in header or cookies');
       return Response.json({ error: "認証トークンが必要です" }, { status: 401 });
     }
-
-    const token = authHeader.replace('Bearer ', '');
-    console.log('Token extracted, length:', token.length);
-    console.log('Token preview:', token.substring(0, 20) + '...');
     
     // トークンからユーザー情報を取得
     const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
