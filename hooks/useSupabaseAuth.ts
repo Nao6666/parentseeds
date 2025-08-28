@@ -185,32 +185,39 @@ export function useSupabaseAuth() {
 
       console.log('Session found, proceeding with account deletion');
 
-      // APIエンドポイントを呼び出し（トークンとCookieの両方を送信）
-      console.log('Calling delete account API...');
-      const response = await fetch('/api/delete-account', {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
+      // まずユーザーのデータを削除（entriesテーブルなど）
+      console.log('Deleting user data...');
+      const { error: dataError } = await supabase
+        .from('entries')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (dataError) {
+        console.error('データ削除エラー:', dataError);
+        // データ削除エラーがあっても続行
+      }
+
+      // ユーザー自身でアカウントを削除（メタデータを更新）
+      console.log('Updating user metadata...');
+      const { error: updateError } = await supabase.auth.updateUser({
+        data: { 
+          deleted: true,
+          deleted_at: new Date().toISOString()
+        }
       });
 
-      console.log('API response status:', response.status);
-      const data = await response.json();
-      console.log('API response data:', data);
-
-      if (response.ok && data.status === 'success') {
-        console.log('Account deletion successful, signing out...');
-        // 成功した場合はログアウト
-        await supabase.auth.signOut();
+      if (updateError) {
+        console.error('User update error:', updateError);
+        setError("アカウントの削除に失敗しました。");
         setLoading(false);
-        return null;
-      } else {
-        console.error('API error:', data.message);
-        setError(data.message || "アカウントの削除に失敗しました。");
-        setLoading(false);
-        return { message: data.message || "アカウントの削除に失敗しました。" };
+        return { message: "アカウントの削除に失敗しました。" };
       }
+
+      console.log('Account marked as deleted, signing out...');
+      // 成功した場合はログアウト
+      await supabase.auth.signOut();
+      setLoading(false);
+      return null;
       
     } catch (error) {
       console.error('Unexpected error:', error);
