@@ -20,7 +20,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: true
+    detectSessionInUrl: true,
+    storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+    storageKey: 'supabase.auth.token'
   }
 });
 
@@ -31,6 +33,12 @@ export { appUrl };
 supabase.auth.getSession().then(({ data, error }) => {
   if (error) {
     console.error('Supabase connection error:', error);
+    // セッションエラーの場合、ローカルストレージをクリア
+    if (typeof window !== 'undefined' && error.message.includes('Auth session missing')) {
+      console.log('Clearing corrupted session data...');
+      localStorage.removeItem('supabase.auth.token');
+      sessionStorage.clear();
+    }
   } else {
     console.log('Supabase connected successfully');
   }

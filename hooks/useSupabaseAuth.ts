@@ -205,11 +205,40 @@ export function useSupabaseAuth() {
     
     try {
       console.log('Attempting to sign out...');
+      
+      // まずセッションの状態を確認
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      console.log('Current session state:', { hasSession: !!session, error: sessionError?.message });
+      
+      if (sessionError) {
+        console.log('Session error detected, clearing local storage...');
+        // セッションエラーの場合、ローカルストレージをクリア
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('supabase.auth.token');
+          sessionStorage.clear();
+        }
+        setLoading(false);
+        return null;
+      }
+      
+      // 通常のログアウトを試行
       const { error } = await supabase.auth.signOut();
       console.log('Sign out result:', { error: error?.message });
       
       if (error) {
         console.error('Sign out error:', error);
+        
+        // セッションエラーの場合、強制的にクリア
+        if (error.message.includes('Auth session missing')) {
+          console.log('Forcing session clear...');
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('supabase.auth.token');
+            sessionStorage.clear();
+          }
+          setLoading(false);
+          return null;
+        }
+        
         setError(error.message);
         setLoading(false);
         return error;
