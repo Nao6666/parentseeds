@@ -165,34 +165,10 @@ export function useSupabaseAuth() {
     setError(null);
 
     try {
-      // 現在のセッションからアクセストークンを取得（複数の方法を試行）
-      let session = null;
-      let sessionError = null;
-
-      // 方法1: getSession()を試行
-      const sessionResult = await supabase.auth.getSession();
-      session = sessionResult.data.session;
-      sessionError = sessionResult.error;
-      console.log('Method 1 - Session result:', !!session, !!sessionError);
-
-      // 方法2: セッションが取得できない場合は、現在のユーザーからセッションを再取得
-      if (!session && user) {
-        console.log('Trying to refresh session...');
-        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
-        session = refreshedSession;
-        sessionError = refreshError;
-        console.log('Method 2 - Refresh result:', !!session, !!refreshError);
-      }
-
-      // 方法3: ユーザーが存在するがセッションがない場合、強制的にセッションを取得
-      if (!session && user) {
-        console.log('User exists but no session, trying to get current session...');
-        const { data: { session: currentSession }, error: currentError } = await supabase.auth.getSession();
-        session = currentSession;
-        sessionError = currentError;
-        console.log('Method 3 - Current session result:', !!session, !!currentError);
-      }
-
+      // 参考記事に基づいて、より確実にトークンを取得
+      console.log('Getting current session...');
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
       if (sessionError) {
         console.error('Session error:', sessionError);
         setError("セッションの取得に失敗しました。");
@@ -202,13 +178,6 @@ export function useSupabaseAuth() {
 
       if (!session?.access_token) {
         console.error('No access token found in session');
-        
-        // 最後の手段として、クッキーからトークンを取得を試行
-        console.log('Trying to get token from cookies...');
-        const cookies = document.cookie.split(';');
-        const supabaseToken = cookies.find(cookie => cookie.trim().startsWith('sb-'));
-        console.log('Supabase cookie found:', !!supabaseToken);
-        
         setError("認証トークンが見つかりません。再度ログインしてください。");
         setLoading(false);
         return { message: "認証トークンが見つかりません。再度ログインしてください。" };
@@ -216,7 +185,6 @@ export function useSupabaseAuth() {
 
       console.log('Access token found, proceeding with account deletion');
       console.log('Token length:', session.access_token.length);
-      console.log('Token preview:', session.access_token.substring(0, 20) + '...');
 
       // APIエンドポイントを使用してアカウント削除を実行
       const response = await fetch('/api/delete-account', {
@@ -226,9 +194,6 @@ export function useSupabaseAuth() {
           'Authorization': `Bearer ${session.access_token}`,
         },
       });
-
-      console.log('Response status:', response.status);
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
 
       const data = await response.json();
 

@@ -1,12 +1,15 @@
 import { NextRequest } from "next/server";
 import { createClient } from '@supabase/supabase-js';
-import { cookies } from 'next/headers';
 
 // サーバーサイド用のSupabaseクライアントを作成
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const supabaseAdmin = createClient(supabaseUrl || '', supabaseServiceKey || '', {
+if (!supabaseUrl || !supabaseServiceKey) {
+  throw new Error('Missing Supabase environment variables');
+}
+
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
   auth: {
     autoRefreshToken: false,
     persistSession: false
@@ -41,32 +44,8 @@ export async function DELETE(request: NextRequest) {
       token = authHeader.replace('Bearer ', '');
       console.log('Token from header, length:', token.length);
     } else {
-      // Authorization headerがない場合、クッキーからトークンを取得
-      console.log('No auth header, trying cookies...');
-      
-      try {
-        // Next.jsのcookiesヘルパーを使用
-        const cookieStore = await cookies();
-        const allCookies = cookieStore.getAll();
-        console.log('All cookies count:', allCookies.length);
-        
-        // Supabaseのセッションクッキーを探す
-        const supabaseCookie = allCookies.find((cookie: any) => cookie.name.startsWith('sb-'));
-        console.log('Supabase cookie found:', !!supabaseCookie);
-        
-        if (supabaseCookie) {
-          try {
-            const cookieValue = decodeURIComponent(supabaseCookie.value);
-            const sessionData = JSON.parse(cookieValue);
-            token = sessionData.access_token;
-            console.log('Token from cookie, length:', token?.length || 0);
-          } catch (error) {
-            console.error('Error parsing cookie:', error);
-          }
-        }
-      } catch (error) {
-        console.error('Error accessing cookies:', error);
-      }
+      console.log('No auth header provided');
+      return Response.json({ error: "認証トークンが必要です" }, { status: 401 });
     }
     
     if (!token) {
