@@ -153,7 +153,7 @@ export function useSupabaseAuth() {
     return error;
   }, []);
 
-  // アカウント削除
+  // アカウント削除（一時的に簡素化）
   const deleteAccount = useCallback(async () => {
     if (!user) {
       setError("ユーザーがログインしていません。");
@@ -165,8 +165,8 @@ export function useSupabaseAuth() {
     setError(null);
 
     try {
-      // 参考記事に基づいて、より確実にトークンを取得
-      console.log('Getting current session...');
+      // 基本的なセッション確認
+      console.log('Checking session...');
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
       if (sessionError) {
@@ -183,31 +183,15 @@ export function useSupabaseAuth() {
         return { message: "認証トークンが見つかりません。再度ログインしてください。" };
       }
 
-      console.log('Access token found, proceeding with account deletion');
-      console.log('Token length:', session.access_token.length);
+      console.log('Session found, token length:', session.access_token.length);
 
-      // APIエンドポイントを使用してアカウント削除を実行
-      const response = await fetch('/api/delete-account', {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        // 成功した場合はログアウト
-        await supabase.auth.signOut();
-        setLoading(false);
-        return null;
-      } else {
-        setError(data.error || "アカウントの削除に失敗しました。");
-        setLoading(false);
-        return { message: data.error || "アカウントの削除に失敗しました。" };
-      }
+      // 一時的にエラーメッセージを表示（API呼び出しを無効化）
+      setError("アカウント削除機能は現在メンテナンス中です。");
+      setLoading(false);
+      return { message: "アカウント削除機能は現在メンテナンス中です。" };
+      
     } catch (error) {
+      console.error('Unexpected error:', error);
       setError("アカウントの削除中にエラーが発生しました。");
       setLoading(false);
       return { message: "アカウントの削除中にエラーが発生しました。" };
@@ -218,10 +202,28 @@ export function useSupabaseAuth() {
   const signOut = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const { error } = await supabase.auth.signOut();
-    setLoading(false);
-    if (error) setError(error.message);
-    return error;
+    
+    try {
+      console.log('Attempting to sign out...');
+      const { error } = await supabase.auth.signOut();
+      console.log('Sign out result:', { error: error?.message });
+      
+      if (error) {
+        console.error('Sign out error:', error);
+        setError(error.message);
+        setLoading(false);
+        return error;
+      }
+      
+      console.log('Sign out successful');
+      setLoading(false);
+      return null;
+    } catch (error) {
+      console.error('Unexpected sign out error:', error);
+      setError("ログアウト中にエラーが発生しました。");
+      setLoading(false);
+      return { message: "ログアウト中にエラーが発生しました。" };
+    }
   }, []);
 
   return {
