@@ -5,6 +5,14 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
+console.log('Supabase URL configured:', !!supabaseUrl);
+console.log('Service role key configured:', !!supabaseServiceKey);
+
+if (!supabaseUrl || !supabaseServiceKey) {
+  console.error('Missing required environment variables');
+  throw new Error('Missing Supabase environment variables');
+}
+
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
   auth: {
     autoRefreshToken: false,
@@ -27,6 +35,7 @@ export async function DELETE(request: NextRequest) {
 
     const token = authHeader.replace('Bearer ', '');
     console.log('Token extracted, length:', token.length);
+    console.log('Token preview:', token.substring(0, 20) + '...');
     
     // トークンからユーザー情報を取得
     const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);

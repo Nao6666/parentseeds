@@ -196,6 +196,8 @@ export function useSupabaseAuth() {
       }
 
       console.log('Access token found, proceeding with account deletion');
+      console.log('Token length:', session.access_token.length);
+      console.log('Token preview:', session.access_token.substring(0, 20) + '...');
 
       // APIエンドポイントを使用してアカウント削除を実行
       const response = await fetch('/api/delete-account', {
@@ -205,6 +207,9 @@ export function useSupabaseAuth() {
           'Authorization': `Bearer ${session.access_token}`,
         },
       });
+
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
 
       const data = await response.json();
 
