@@ -164,36 +164,35 @@ export function useSupabaseAuth() {
     setError(null);
 
     try {
-      // ユーザーのデータを削除（entriesテーブルなど）
-      const { error: dataError } = await supabase
-        .from('entries')
-        .delete()
-        .eq('user_id', user.id);
-
-      if (dataError) {
-        console.error('データ削除エラー:', dataError);
+      // 現在のセッションからアクセストークンを取得
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        setError("認証トークンが見つかりません。");
+        setLoading(false);
+        return { message: "認証トークンが見つかりません。" };
       }
 
-      // アカウントを削除
-      const { error } = await supabase.auth.admin.deleteUser(user.id);
-      
-      if (error) {
-        // 管理者権限がない場合は、ユーザー自身で削除を試行
-        const { error: userDeleteError } = await supabase.auth.updateUser({
-          data: { deleted: true }
-        });
-        
-        if (userDeleteError) {
-          setError("アカウントの削除に失敗しました。");
-          setLoading(false);
-          return userDeleteError;
-        }
-      }
+      // APIエンドポイントを使用してアカウント削除を実行
+      const response = await fetch('/api/delete-account', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+      });
 
-      // ログアウト
-      await supabase.auth.signOut();
-      setLoading(false);
-      return null;
+      const data = await response.json();
+
+      if (response.ok) {
+        // 成功した場合はログアウト
+        await supabase.auth.signOut();
+        setLoading(false);
+        return null;
+      } else {
+        setError(data.error || "アカウントの削除に失敗しました。");
+        setLoading(false);
+        return { message: data.error || "アカウントの削除に失敗しました。" };
+      }
     } catch (error) {
       setError("アカウントの削除中にエラーが発生しました。");
       setLoading(false);

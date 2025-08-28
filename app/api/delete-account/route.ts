@@ -1,42 +1,52 @@
 import { NextRequest } from "next/server";
-import { supabase } from "@/lib/supabaseClient";
+import { createClient } from '@supabase/supabase-js';
+
+// サーバーサイド用のSupabaseクライアントを作成
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false
+  }
+});
 
 export async function DELETE(request: NextRequest) {
   try {
-    // ユーザーの認証を確認
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    // Authorization headerからトークンを取得
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return Response.json({ error: "認証トークンが必要です" }, { status: 401 });
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    
+    // トークンからユーザー情報を取得
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
     
     if (authError || !user) {
       return Response.json({ error: "認証が必要です" }, { status: 401 });
     }
 
     // ユーザーのデータを削除（entriesテーブルなど）
-    const { error: dataError } = await supabase
+    const { error: dataError } = await supabaseAdmin
       .from('entries')
       .delete()
       .eq('user_id', user.id);
 
     if (dataError) {
       console.error('データ削除エラー:', dataError);
-      return Response.json({ error: "データの削除に失敗しました" }, { status: 500 });
+      // データ削除エラーがあっても続行（アカウント削除は実行）
     }
 
-    // アカウントを削除
-    const { error: deleteError } = await supabase.auth.admin.deleteUser(user.id);
+    // 管理者権限でアカウントを削除
+    const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(user.id);
     
     if (deleteError) {
-      // 管理者権限がない場合は、ユーザー自身で削除を試行
-      const { error: userDeleteError } = await supabase.auth.updateUser({
-        data: { deleted: true }
-      });
-      
-      if (userDeleteError) {
-        return Response.json({ error: "アカウントの削除に失敗しました" }, { status: 500 });
-      }
+      console.error('アカウント削除エラー:', deleteError);
+      return Response.json({ error: "アカウントの削除に失敗しました" }, { status: 500 });
     }
-
-    // ログアウト
-    await supabase.auth.signOut();
 
     return Response.json({ 
       message: "アカウントが正常に削除されました" 
