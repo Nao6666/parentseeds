@@ -183,15 +183,14 @@ export function useSupabaseAuth() {
         return { message: "認証トークンが見つかりません。再度ログインしてください。" };
       }
 
-      console.log('Session found, token length:', session.access_token.length);
+      console.log('Session found, proceeding with account deletion');
 
-      // APIエンドポイントを呼び出してテスト
+      // APIエンドポイントを呼び出し（Cookieが自動で送信される）
       console.log('Calling delete account API...');
       const response = await fetch('/api/delete-account', {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
         },
       });
 
@@ -199,17 +198,17 @@ export function useSupabaseAuth() {
       const data = await response.json();
       console.log('API response data:', data);
 
-      if (response.ok) {
+      if (response.ok && data.status === 'success') {
         console.log('Account deletion successful, signing out...');
         // 成功した場合はログアウト
         await supabase.auth.signOut();
         setLoading(false);
         return null;
       } else {
-        console.error('API error:', data.error);
-        setError(data.error || "アカウントの削除に失敗しました。");
+        console.error('API error:', data.message);
+        setError(data.message || "アカウントの削除に失敗しました。");
         setLoading(false);
-        return { message: data.error || "アカウントの削除に失敗しました。" };
+        return { message: data.message || "アカウントの削除に失敗しました。" };
       }
       
     } catch (error) {
