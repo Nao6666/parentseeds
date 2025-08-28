@@ -2,22 +2,10 @@ import { NextRequest } from "next/server";
 import { createClient } from '@supabase/supabase-js';
 
 // サーバーサイド用のSupabaseクライアントを作成
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-console.log('Supabase URL configured:', !!supabaseUrl);
-console.log('Service role key configured:', !!supabaseServiceKey);
-console.log('Supabase URL length:', supabaseUrl?.length || 0);
-console.log('Service role key length:', supabaseServiceKey?.length || 0);
-
-if (!supabaseUrl || !supabaseServiceKey) {
-  console.error('Missing required environment variables');
-  console.error('Supabase URL missing:', !supabaseUrl);
-  console.error('Service role key missing:', !supabaseServiceKey);
-  throw new Error('Missing Supabase environment variables');
-}
-
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+const supabaseAdmin = createClient(supabaseUrl || '', supabaseServiceKey || '', {
   auth: {
     autoRefreshToken: false,
     persistSession: false
@@ -27,6 +15,21 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
 export async function DELETE(request: NextRequest) {
   try {
     console.log('Delete account API called');
+    console.log('Environment check starting...');
+    
+    // 環境変数のチェック
+    console.log('Environment variables check:');
+    console.log('- Supabase URL configured:', !!supabaseUrl);
+    console.log('- Service role key configured:', !!supabaseServiceKey);
+    console.log('- Supabase URL length:', supabaseUrl?.length || 0);
+    console.log('- Service role key length:', supabaseServiceKey?.length || 0);
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('Missing required environment variables:');
+      console.error('- Supabase URL missing:', !supabaseUrl);
+      console.error('- Service role key missing:', !supabaseServiceKey);
+      return Response.json({ error: "サーバー設定エラー" }, { status: 500 });
+    }
     
     // Authorization headerからトークンを取得
     const authHeader = request.headers.get('authorization');
