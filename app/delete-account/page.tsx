@@ -27,22 +27,17 @@ export default function DeleteAccountPage() {
     setMessage("");
 
     try {
-      const response = await fetch("/api/delete-account", {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
+      const result = await deleteAccount();
+      
+      if (!result) {
+        // 成功
         setMessage("アカウントが正常に削除されました。ログインページにリダイレクトします。");
         setTimeout(() => {
           router.push("/");
         }, 3000);
       } else {
-        setError(data.error || "アカウントの削除に失敗しました");
+        // エラー
+        setError(result.message || "アカウントの削除に失敗しました");
       }
     } catch (err) {
       setError("ネットワークエラーが発生しました");
