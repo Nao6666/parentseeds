@@ -1,4 +1,5 @@
 const { createClient } = require('@supabase/supabase-js');
+require('dotenv').config({ path: '.env.local' });
 
 // 環境変数から設定を取得
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
