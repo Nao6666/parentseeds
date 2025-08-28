@@ -185,12 +185,13 @@ export function useSupabaseAuth() {
 
       console.log('Session found, proceeding with account deletion');
 
-      // APIエンドポイントを呼び出し（Cookieが自動で送信される）
+      // APIエンドポイントを呼び出し（トークンとCookieの両方を送信）
       console.log('Calling delete account API...');
       const response = await fetch('/api/delete-account', {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
         },
       });
 

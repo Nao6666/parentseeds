@@ -33,14 +33,41 @@ export async function DELETE(request: NextRequest) {
       }
     );
 
-    // リクエストを叩いたユーザーの情報を取得する（Cookieが渡っているので自動で取得される）
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    // Authorization headerからトークンを取得（フォールバック）
+    let user = null;
+    const authHeader = request.headers.get('authorization');
     
-    if (userError || !user) {
-      console.error('User authentication error:', userError);
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.replace('Bearer ', '');
+      console.log('Using token from Authorization header');
+      
+      const { data: { user: tokenUser }, error: tokenError } = await supabase.auth.getUser(token);
+      if (!tokenError && tokenUser) {
+        user = tokenUser;
+      }
+    }
+    
+    // トークンがない場合、Cookieからセッションを取得
+    if (!user) {
+      console.log('Trying to get user from session...');
+      const { data: { user: sessionUser }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError) {
+        console.error('User authentication error:', userError);
+        return NextResponse.json({
+          status: "error",
+          message: "認証が必要です。再度ログインしてください。"
+        }, { status: 401 });
+      }
+      
+      user = sessionUser;
+    }
+    
+    if (!user) {
+      console.error('No user found');
       return NextResponse.json({
         status: "error",
-        message: "認証が必要です"
+        message: "ユーザーが見つかりません"
       }, { status: 401 });
     }
 
