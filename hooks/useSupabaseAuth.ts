@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { supabase, appUrl } from '../lib/supabaseClient';
 import type { User } from '@supabase/supabase-js';
 
 export function useSupabaseAuth() {
@@ -64,7 +64,13 @@ export function useSupabaseAuth() {
       return { message: "このメールアドレスは既に登録されています。" };
     }
     
-    const { error } = await supabase.auth.signUp({ email, password });
+    const { error } = await supabase.auth.signUp({ 
+      email, 
+      password,
+      options: {
+        emailRedirectTo: `${appUrl}/auth/callback`
+      }
+    });
     setLoading(false);
     
     if (error) {
@@ -130,7 +136,7 @@ export function useSupabaseAuth() {
     setLoading(true);
     setError(null);
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
+      redirectTo: `${appUrl}/reset-password`,
     });
     setLoading(false);
     if (error) setError(error.message);
