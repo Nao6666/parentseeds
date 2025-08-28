@@ -56,14 +56,7 @@ export function useSupabaseAuth() {
     
     console.log('Attempting signup with email:', email); // デバッグ用
     
-    // まずメールアドレスの重複チェック
-    const emailExists = await checkEmailExists(email);
-    if (emailExists) {
-      setLoading(false);
-      setError("このメールアドレスは既に登録されています。");
-      return { message: "このメールアドレスは既に登録されています。" };
-    }
-    
+    // 重複チェックを無効化（Supabaseの標準処理に任せる）
     const { error } = await supabase.auth.signUp({ 
       email, 
       password,
