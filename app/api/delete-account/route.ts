@@ -105,6 +105,15 @@ export async function DELETE(request: NextRequest) {
     }
 
     console.log('Account deletion successful');
+    
+    // 削除成功後にセッションをクリア
+    try {
+      await supabase.auth.signOut();
+      console.log('Session cleared after account deletion');
+    } catch (signOutError) {
+      console.log('Sign out error (expected after account deletion):', signOutError);
+    }
+    
     return NextResponse.json({
       status: "success",
       message: "アカウント削除しました。"

@@ -32,9 +32,10 @@ export default function DeleteAccountPage() {
       if (!result) {
         // 成功
         setMessage("アカウントが正常に削除されました。ログインページにリダイレクトします。");
+        // 即座にリダイレクト（ログアウトは不要）
         setTimeout(() => {
           router.push("/");
-        }, 3000);
+        }, 2000);
       } else {
         // エラー
         setError(result.message || "アカウントの削除に失敗しました");

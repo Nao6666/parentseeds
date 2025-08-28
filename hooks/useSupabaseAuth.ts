@@ -212,9 +212,8 @@ export function useSupabaseAuth() {
       console.log('Server response data:', data);
 
       if (response.ok && data.status === 'success') {
-        console.log('Account deletion successful, signing out...');
-        // 成功した場合はログアウト
-        await supabase.auth.signOut();
+        console.log('Account deletion successful');
+        // 成功した場合はログアウトを試行せず、直接成功を返す
         setLoading(false);
         return null;
       } else {
