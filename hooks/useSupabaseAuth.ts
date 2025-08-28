@@ -197,27 +197,32 @@ export function useSupabaseAuth() {
         // データ削除エラーがあっても続行
       }
 
-      // ユーザー自身でアカウントを削除（メタデータを更新）
-      console.log('Updating user metadata...');
-      const { error: updateError } = await supabase.auth.updateUser({
-        data: { 
-          deleted: true,
-          deleted_at: new Date().toISOString()
-        }
+      // サーバーサイドでアカウントを削除
+      console.log('Calling server-side account deletion...');
+      const response = await fetch('/api/delete-account', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
       });
 
-      if (updateError) {
-        console.error('User update error:', updateError);
-        setError("アカウントの削除に失敗しました。");
-        setLoading(false);
-        return { message: "アカウントの削除に失敗しました。" };
-      }
+      console.log('Server response status:', response.status);
+      const data = await response.json();
+      console.log('Server response data:', data);
 
-      console.log('Account marked as deleted, signing out...');
-      // 成功した場合はログアウト
-      await supabase.auth.signOut();
-      setLoading(false);
-      return null;
+      if (response.ok && data.status === 'success') {
+        console.log('Account deletion successful, signing out...');
+        // 成功した場合はログアウト
+        await supabase.auth.signOut();
+        setLoading(false);
+        return null;
+      } else {
+        console.error('Server error:', data.message);
+        setError(data.message || "アカウントの削除に失敗しました。");
+        setLoading(false);
+        return { message: data.message || "アカウントの削除に失敗しました。" };
+      }
       
     } catch (error) {
       console.error('Unexpected error:', error);

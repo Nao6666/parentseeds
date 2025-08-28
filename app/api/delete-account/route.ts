@@ -85,13 +85,22 @@ export async function DELETE(request: NextRequest) {
     }
 
     // 削除を実行
+    console.log('Attempting to delete user:', user.id);
     const { data, error } = await supabase.auth.admin.deleteUser(user.id);
     
     if (error) {
       console.error('アカウント削除エラー:', error);
+      
+      // エラーの詳細をログ出力
+      console.error('Error details:', {
+        message: error.message,
+        status: error.status,
+        name: error.name
+      });
+      
       return NextResponse.json({
         status: "error",
-        message: "アカウントの削除ができませんでした。"
+        message: `アカウントの削除ができませんでした: ${error.message}`
       }, { status: 500 });
     }
 
