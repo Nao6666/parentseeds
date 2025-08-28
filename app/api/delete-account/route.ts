@@ -7,9 +7,13 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 console.log('Supabase URL configured:', !!supabaseUrl);
 console.log('Service role key configured:', !!supabaseServiceKey);
+console.log('Supabase URL length:', supabaseUrl?.length || 0);
+console.log('Service role key length:', supabaseServiceKey?.length || 0);
 
 if (!supabaseUrl || !supabaseServiceKey) {
   console.error('Missing required environment variables');
+  console.error('Supabase URL missing:', !supabaseUrl);
+  console.error('Service role key missing:', !supabaseServiceKey);
   throw new Error('Missing Supabase environment variables');
 }
 

@@ -160,6 +160,7 @@ export function useSupabaseAuth() {
       return { message: "ユーザーがログインしていません。" };
     }
 
+    console.log('User info:', { id: user.id, email: user.email });
     setLoading(true);
     setError(null);
 
@@ -179,6 +180,14 @@ export function useSupabaseAuth() {
         const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
         session = refreshedSession;
         sessionError = refreshError;
+      }
+
+      // 方法3: ユーザーが存在するがセッションがない場合、強制的にセッションを取得
+      if (!session && user) {
+        console.log('User exists but no session, trying to get current session...');
+        const { data: { session: currentSession }, error: currentError } = await supabase.auth.getSession();
+        session = currentSession;
+        sessionError = currentError;
       }
 
       if (sessionError) {
