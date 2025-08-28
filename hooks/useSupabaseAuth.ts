@@ -164,13 +164,38 @@ export function useSupabaseAuth() {
     setError(null);
 
     try {
-      // 現在のセッションからアクセストークンを取得
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        setError("認証トークンが見つかりません。");
-        setLoading(false);
-        return { message: "認証トークンが見つかりません。" };
+      // 現在のセッションからアクセストークンを取得（複数の方法を試行）
+      let session = null;
+      let sessionError = null;
+
+      // 方法1: getSession()を試行
+      const sessionResult = await supabase.auth.getSession();
+      session = sessionResult.data.session;
+      sessionError = sessionResult.error;
+
+      // 方法2: セッションが取得できない場合は、現在のユーザーからセッションを再取得
+      if (!session && user) {
+        console.log('Trying to refresh session...');
+        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+        session = refreshedSession;
+        sessionError = refreshError;
       }
+
+      if (sessionError) {
+        console.error('Session error:', sessionError);
+        setError("セッションの取得に失敗しました。");
+        setLoading(false);
+        return { message: "セッションの取得に失敗しました。" };
+      }
+
+      if (!session?.access_token) {
+        console.error('No access token found in session');
+        setError("認証トークンが見つかりません。再度ログインしてください。");
+        setLoading(false);
+        return { message: "認証トークンが見つかりません。再度ログインしてください。" };
+      }
+
+      console.log('Access token found, proceeding with account deletion');
 
       // APIエンドポイントを使用してアカウント削除を実行
       const response = await fetch('/api/delete-account', {

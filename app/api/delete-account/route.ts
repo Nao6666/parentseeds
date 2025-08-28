@@ -14,20 +14,34 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
 
 export async function DELETE(request: NextRequest) {
   try {
+    console.log('Delete account API called');
+    
     // Authorization headerからトークンを取得
     const authHeader = request.headers.get('authorization');
+    console.log('Auth header present:', !!authHeader);
+    
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.error('Invalid or missing authorization header');
       return Response.json({ error: "認証トークンが必要です" }, { status: 401 });
     }
 
     const token = authHeader.replace('Bearer ', '');
+    console.log('Token extracted, length:', token.length);
     
     // トークンからユーザー情報を取得
     const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
     
-    if (authError || !user) {
-      return Response.json({ error: "認証が必要です" }, { status: 401 });
+    if (authError) {
+      console.error('Auth error:', authError);
+      return Response.json({ error: `認証エラー: ${authError.message}` }, { status: 401 });
     }
+    
+    if (!user) {
+      console.error('No user found from token');
+      return Response.json({ error: "ユーザーが見つかりません" }, { status: 401 });
+    }
+    
+    console.log('User authenticated:', user.id);
 
     // ユーザーのデータを削除（entriesテーブルなど）
     const { error: dataError } = await supabaseAdmin
