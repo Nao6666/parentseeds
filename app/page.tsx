@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -16,8 +16,6 @@ import {
   MessageCircle,
   Lightbulb,
   Video,
-  Phone,
-  MessageSquare,
   AlertTriangle,
   Trash2,
   Smile,
@@ -50,7 +48,6 @@ import {
 } from "recharts"
 import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
 import LoginForm from "@/components/LoginForm";
-import React from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useToast } from "@/hooks/use-toast";
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -99,7 +96,7 @@ const emotionChartColors = {
 
 const emotions = ["喜び", "不安", "怒り", "悲しみ", "疲労", "罪悪感", "愛情"]
 
-// サンプルの時系列データを生成 → entriesからグラフ用データを生成
+// entriesからグラフ用データを生成
 const periodToDays = (period: string) => {
   switch (period) {
     case "1week": return 7;
@@ -114,7 +111,7 @@ const getJstDateString = (date = new Date()) => {
   const jst = new Date(date.getTime() + 9 * 60 * 60 * 1000);
   return jst.toISOString().slice(0, 10);
 };
-const generateTimeSeriesDataFromEntries = (entries: any[], period: string) => {
+const generateTimeSeriesDataFromEntries = (entries: Entry[], period: string): TimeSeriesData[] => {
   const daysCount = periodToDays(period);
   const today = new Date();
   const days = Array.from({ length: daysCount }, (_, i) => {
@@ -141,11 +138,55 @@ const generateTimeSeriesDataFromEntries = (entries: any[], period: string) => {
   });
 };
 
+// 週の開始日と終了日を取得する共通関数
+const getWeekRange = () => {
+  const now = new Date();
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() - now.getDay());
+  return {
+    start: getJstDateString(weekStart),
+    end: getJstDateString(now)
+  };
+};
+
+// 感情の出現回数を集計する共通関数
+const countEmotions = (entries: Entry[]): Record<string, number> => {
+  const emotionCount: Record<string, number> = {};
+  entries.forEach(entry => {
+    entry.emotions?.forEach(emotion => {
+      emotionCount[emotion] = (emotionCount[emotion] || 0) + 1;
+    });
+  });
+  return emotionCount;
+};
+
 interface ChatMessage {
   id: number
   role: "user" | "assistant"
   content: string
   timestamp: Date
+}
+
+interface Entry {
+  id: string
+  user_id: string
+  date: string
+  emotions: string[]
+  content: string
+  aiAdvice?: string
+  created_at: string
+}
+
+interface EmotionStats {
+  ストレスレベル: number
+  ポジティブ度: number
+  emotionTotals: Record<string, number>
+}
+
+interface TimeSeriesData {
+  date: string
+  fullDate: string
+  [key: string]: string | number
 }
 
 export default function ParentSeedApp() {
@@ -166,7 +207,7 @@ export default function ParentSeedApp() {
   const [chatInput, setChatInput] = useState("")
   const [isGeneratingAdvice, setIsGeneratingAdvice] = useState(false)
   const [isChatLoading, setIsChatLoading] = useState(false)
-  const [entries, setEntries] = useState<any[]>([]);
+  const [entries, setEntries] = useState<Entry[]>([]);
   const [entriesLoading, setEntriesLoading] = useState(true);
   const { toast } = useToast();
 
@@ -180,30 +221,29 @@ export default function ParentSeedApp() {
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .then(({ data, error }) => {
-        if (!error) setEntries(data || []);
+        if (error) {
+          console.error("Error fetching entries:", error);
+          toast({ 
+            title: "エラー", 
+            description: "記録の取得に失敗しました。", 
+            variant: "destructive" 
+          });
+        } else {
+          setEntries(data || []);
+        }
         setEntriesLoading(false);
       });
-  }, [user]);
+  }, [user, toast]);
 
   const timeSeriesData = generateTimeSeriesDataFromEntries(entries, chartPeriod) || [];
   const safeTimeSeriesData = Array.isArray(timeSeriesData) ? timeSeriesData : [];
 
   // 統計値もentriesから計算
-  const calcStatsFromEntries = (entries: any[]) => {
-    // 今週（日曜～土曜）分のentries
-    const now = new Date();
-    const weekStart = new Date(now);
-    weekStart.setDate(now.getDate() - now.getDay());
-    const weekStartStr = getJstDateString(weekStart);
-    const nowStr = getJstDateString(now);
+  const calcStatsFromEntries = (entries: Entry[]): EmotionStats => {
+    const { start: weekStartStr, end: nowStr } = getWeekRange();
     const weekEntries = entries.filter(e => e.date >= weekStartStr && e.date <= nowStr);
-    // 感情ごとの合計
-    const emotionTotals: Record<string, number> = {};
-    emotions.forEach(emotion => {
-      emotionTotals[emotion] = weekEntries.reduce((acc, e) => acc + (e.emotions?.includes(emotion) ? 1 : 0), 0);
-    });
+    const emotionTotals = countEmotions(weekEntries);
     const total = Object.values(emotionTotals).reduce((a, b) => a + b, 0) || 1;
-    // 仮の計算例
     return {
       ストレスレベル: Math.round((emotionTotals["不安"] + emotionTotals["怒り"] + emotionTotals["疲労"] + emotionTotals["罪悪感"] + emotionTotals["悲しみ"]) / total * 100),
       ポジティブ度: Math.round((emotionTotals["喜び"] + emotionTotals["愛情"]) / total * 100),
@@ -213,7 +253,7 @@ export default function ParentSeedApp() {
   const emotionStats = calcStatsFromEntries(entries);
 
   // 連続記録日数をentriesから計算
-  const calcStreak = (entries: any[]) => {
+  const calcStreak = (entries: Entry[]): number => {
     if (!entries.length) return 0;
     // 日付をJSTでYYYY-MM-DD形式でユニークにソート
     const days = Array.from(new Set(entries.map(e => e.date))).sort();
@@ -234,36 +274,23 @@ export default function ParentSeedApp() {
   };
   const streak = calcStreak(entries);
 
-  // 感情コントロール力・自己理解度（例: ポジティブ度や記録頻度から算出）
-  const controlPower = emotionStats.ポジティブ度; // 仮: ポジティブ度を流用
-  const selfUnderstanding = Math.min(100, entries.length * 10); // 仮: 記録数×10（最大100）
-
-  // 今週のハイライト（今週の最新記録の内容）
-  const now = new Date();
-  const weekStart = new Date(now);
-  weekStart.setDate(now.getDate() - now.getDay());
-  const weekStartStr = getJstDateString(weekStart);
-  const nowStr = getJstDateString(now);
-  const weekEntries = entries.filter(e => e.date >= weekStartStr && e.date <= nowStr);
-  const highlight = weekEntries.length > 0 ? weekEntries[0].content : "今週の記録がありません。";
+  // 感情コントロール力・自己理解度
+  const controlPower = emotionStats.ポジティブ度;
+  const selfUnderstanding = Math.min(100, entries.length * 10);
 
   // 今週のハイライト（今週の記録のサマリ）
-  const getWeeklySummary = (weekEntries: any[]) => {
+  const getWeeklySummary = (entries: Entry[]): string => {
+    const { start: weekStartStr, end: nowStr } = getWeekRange();
+    const weekEntries = entries.filter(e => e.date >= weekStartStr && e.date <= nowStr);
+    
     if (weekEntries.length === 0) return "今週の記録がありません。";
-    // 感情の出現回数を集計
-    const emotionCount: Record<string, number> = {};
-    weekEntries.forEach(e => {
-      e.emotions?.forEach((emo: string) => {
-        emotionCount[emo] = (emotionCount[emo] || 0) + 1;
-      });
-    });
-    // 最も多かった感情
+    
+    const emotionCount = countEmotions(weekEntries);
     const topEmotion = Object.entries(emotionCount).sort((a, b) => b[1] - a[1])[0]?.[0] || "";
-    // 代表的な一文（最新の記録内容）
     const latestContent = weekEntries[0]?.content || "";
     return `今週は${weekEntries.length}件の記録があり、特に「${topEmotion}」の気持ちが多く見られました。例：「${latestContent.slice(0, 30)}...」`;
   };
-  const weeklySummary = getWeeklySummary(weekEntries);
+  const weeklySummary = getWeeklySummary(entries);
 
   // ローディング中はローディング表示
   if (loading) {
@@ -316,22 +343,39 @@ export default function ParentSeedApp() {
   const saveEntry = async () => {
     if (currentEntry.trim() && selectedEmotions.length > 0) {
       setIsGeneratingAdvice(true);
-      const aiAdvice = await generateAIAdvice(selectedEmotions, currentEntry);
-      const newEntry = {
-        user_id: user.id,
-        date: getJstDateString(), // JST
-        emotions: [...selectedEmotions],
-        content: currentEntry,
-        aiAdvice,
-      };
-      const { data, error } = await supabase.from("entries").insert([newEntry]).select();
-      if (!error && data && data[0]) {
-        setEntries([data[0], ...entries]);
-        setCurrentEntry("");
-        setSelectedEmotions([]);
-        toast({ title: "保存が完了しました", description: "記録が正常に保存されました。" });
+      try {
+        const aiAdvice = await generateAIAdvice(selectedEmotions, currentEntry);
+        const newEntry = {
+          user_id: user.id,
+          date: getJstDateString(),
+          emotions: [...selectedEmotions],
+          content: currentEntry,
+          aiAdvice,
+        };
+        const { data, error } = await supabase.from("entries").insert([newEntry]).select();
+        if (error) {
+          console.error("Error saving entry:", error);
+          toast({ 
+            title: "エラー", 
+            description: "記録の保存に失敗しました。", 
+            variant: "destructive" 
+          });
+        } else if (data && data[0]) {
+          setEntries([data[0], ...entries]);
+          setCurrentEntry("");
+          setSelectedEmotions([]);
+          toast({ title: "保存が完了しました", description: "記録が正常に保存されました。" });
+        }
+      } catch (error) {
+        console.error("Error in saveEntry:", error);
+        toast({ 
+          title: "エラー", 
+          description: "記録の保存中にエラーが発生しました。", 
+          variant: "destructive" 
+        });
+      } finally {
+        setIsGeneratingAdvice(false);
       }
-      setIsGeneratingAdvice(false);
     }
   };
 
@@ -391,15 +435,35 @@ export default function ParentSeedApp() {
 
   const deleteEntry = async (entryId: string) => {
     if (confirm("この記録を削除しますか？")) {
-      const { error } = await supabase.from("entries").delete().eq("id", entryId);
-      if (!error) {
-        setEntries(entries.filter((entry) => entry.id !== entryId));
-        toast({ title: "削除が完了しました", description: "記録が正常に削除されました。" });
+      try {
+        const { error } = await supabase.from("entries").delete().eq("id", entryId);
+        if (error) {
+          console.error("Error deleting entry:", error);
+          toast({ 
+            title: "エラー", 
+            description: "記録の削除に失敗しました。", 
+            variant: "destructive" 
+          });
+        } else {
+          setEntries(entries.filter((entry) => entry.id !== entryId));
+          toast({ title: "削除が完了しました", description: "記録が正常に削除されました。" });
+        }
+      } catch (error) {
+        console.error("Error in deleteEntry:", error);
+        toast({ 
+          title: "エラー", 
+          description: "記録の削除中にエラーが発生しました。", 
+          variant: "destructive" 
+        });
       }
     }
   }
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload, label }: {
+    active?: boolean
+    payload?: Array<{ dataKey: string; value: number; color: string }>
+    label?: string
+  }) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-white p-3 border rounded-lg shadow-lg">
@@ -650,63 +714,61 @@ export default function ParentSeedApp() {
 
                     {/* グラフ */}
                     <div className="h-64 sm:h-80 lg:h-96">
-                      {chartType === "line" && safeTimeSeriesData.length > 0 ? (
+                      {safeTimeSeriesData.length > 0 ? (
                         <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={safeTimeSeriesData}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="date" fontSize={12} />
-                            <YAxis fontSize={12} />
-                            <RechartsTooltip content={<CustomTooltip />} />
-                            <Legend fontSize={12} />
-                            {emotions.map((emotion) => (
-                              <Line
-                                key={emotion}
-                                type="monotone"
-                                dataKey={emotion}
-                                stroke={emotionChartColors[emotion as keyof typeof emotionChartColors]}
-                                strokeWidth={2}
-                                dot={{ r: 3 }}
-                              />
-                            ))}
-                          </LineChart>
-                        </ResponsiveContainer>
-                      ) : chartType === "area" && safeTimeSeriesData.length > 0 ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <AreaChart data={safeTimeSeriesData}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="date" fontSize={12} />
-                            <YAxis fontSize={12} />
-                            <RechartsTooltip content={<CustomTooltip />} />
-                            <Legend fontSize={12} />
-                            {emotions.map((emotion) => (
-                              <Area
-                                key={emotion}
-                                type="monotone"
-                                dataKey={emotion}
-                                stackId="1"
-                                stroke={emotionChartColors[emotion as keyof typeof emotionChartColors]}
-                                fill={emotionChartColors[emotion as keyof typeof emotionChartColors]}
-                                fillOpacity={0.6}
-                              />
-                            ))}
-                          </AreaChart>
-                        </ResponsiveContainer>
-                      ) : chartType === "bar" && safeTimeSeriesData.length > 0 ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={safeTimeSeriesData}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="date" fontSize={12} />
-                            <YAxis fontSize={12} />
-                            <RechartsTooltip content={<CustomTooltip />} />
-                            <Legend fontSize={12} />
-                            {emotions.map((emotion) => (
-                              <Bar
-                                key={emotion}
-                                dataKey={emotion}
-                                fill={emotionChartColors[emotion as keyof typeof emotionChartColors]}
-                              />
-                            ))}
-                          </BarChart>
+                          {chartType === "line" ? (
+                            <LineChart data={safeTimeSeriesData}>
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="date" fontSize={12} />
+                              <YAxis fontSize={12} />
+                              <RechartsTooltip content={<CustomTooltip />} />
+                              <Legend fontSize={12} />
+                              {emotions.map((emotion) => (
+                                <Line
+                                  key={emotion}
+                                  type="monotone"
+                                  dataKey={emotion}
+                                  stroke={emotionChartColors[emotion as keyof typeof emotionChartColors]}
+                                  strokeWidth={2}
+                                  dot={{ r: 3 }}
+                                />
+                              ))}
+                            </LineChart>
+                          ) : chartType === "area" ? (
+                            <AreaChart data={safeTimeSeriesData}>
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="date" fontSize={12} />
+                              <YAxis fontSize={12} />
+                              <RechartsTooltip content={<CustomTooltip />} />
+                              <Legend fontSize={12} />
+                              {emotions.map((emotion) => (
+                                <Area
+                                  key={emotion}
+                                  type="monotone"
+                                  dataKey={emotion}
+                                  stackId="1"
+                                  stroke={emotionChartColors[emotion as keyof typeof emotionChartColors]}
+                                  fill={emotionChartColors[emotion as keyof typeof emotionChartColors]}
+                                  fillOpacity={0.6}
+                                />
+                              ))}
+                            </AreaChart>
+                          ) : (
+                            <BarChart data={safeTimeSeriesData}>
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="date" fontSize={12} />
+                              <YAxis fontSize={12} />
+                              <RechartsTooltip content={<CustomTooltip />} />
+                              <Legend fontSize={12} />
+                              {emotions.map((emotion) => (
+                                <Bar
+                                  key={emotion}
+                                  dataKey={emotion}
+                                  fill={emotionChartColors[emotion as keyof typeof emotionChartColors]}
+                                />
+                              ))}
+                            </BarChart>
+                          )}
                         </ResponsiveContainer>
                       ) : (
                         <div className="flex items-center justify-center h-full text-gray-400">データがありません</div>
