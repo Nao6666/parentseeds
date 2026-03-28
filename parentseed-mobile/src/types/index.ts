@@ -5,6 +5,7 @@ export interface Entry {
   emotions: string[];
   content: string;
   aiAdvice?: string;
+  image_urls?: string[];
   created_at: string;
 }
 
