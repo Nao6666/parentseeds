@@ -1,5 +1,5 @@
 import { Entry, EmotionStats, TimeSeriesData } from '../types';
-import { emotions } from './constants';
+import { emotions, positiveEmotions, negativeEmotions } from './constants';
 import { getJstDateString, getWeekRange, periodToDays, formatDateShort } from './dateUtils';
 
 /**
@@ -23,19 +23,12 @@ export const calcStatsFromEntries = (entries: Entry[]): EmotionStats => {
   const weekEntries = entries.filter((e) => e.date >= weekStartStr && e.date <= nowStr);
   const emotionTotals = countEmotions(weekEntries);
   const total = Object.values(emotionTotals).reduce((a, b) => a + b, 0) || 1;
+  const negativeTotal = negativeEmotions.reduce((sum, e) => sum + (emotionTotals[e] || 0), 0);
+  const positiveTotal = positiveEmotions.reduce((sum, e) => sum + (emotionTotals[e] || 0), 0);
+
   return {
-    stressLevel: Math.round(
-      ((emotionTotals['不安'] || 0) +
-        (emotionTotals['怒り'] || 0) +
-        (emotionTotals['疲労'] || 0) +
-        (emotionTotals['罪悪感'] || 0) +
-        (emotionTotals['悲しみ'] || 0)) /
-        total *
-        100
-    ),
-    positivity: Math.round(
-      ((emotionTotals['喜び'] || 0) + (emotionTotals['愛情'] || 0)) / total * 100
-    ),
+    stressLevel: Math.round(negativeTotal / total * 100),
+    positivity: Math.round(positiveTotal / total * 100),
     emotionTotals,
   };
 };

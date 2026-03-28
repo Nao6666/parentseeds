@@ -5,6 +5,42 @@ import { generateAdvice } from '../lib/api';
 import { getJstDateString } from '../lib/dateUtils';
 import type { Entry } from '../types';
 
+async function uploadImages(userId: string, images: string[]): Promise<string[]> {
+  const urls: string[] = [];
+
+  for (const uri of images) {
+    const fileName = `${userId}/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`;
+
+    const response = await fetch(uri);
+    const blob = await response.blob();
+
+    // Convert blob to ArrayBuffer
+    const arrayBuffer = await new Response(blob).arrayBuffer();
+
+    const { error } = await supabase.storage
+      .from('entry-images')
+      .upload(fileName, arrayBuffer, {
+        contentType: 'image/jpeg',
+        upsert: false,
+      });
+
+    if (error) {
+      console.error('Image upload error:', error);
+      continue;
+    }
+
+    const { data: urlData } = supabase.storage
+      .from('entry-images')
+      .getPublicUrl(fileName);
+
+    if (urlData?.publicUrl) {
+      urls.push(urlData.publicUrl);
+    }
+  }
+
+  return urls;
+}
+
 export function useEntries(userId: string | undefined) {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,18 +71,28 @@ export function useEntries(userId: string | undefined) {
   }, [userId]);
 
   const saveEntry = useCallback(
-    async (selectedEmotions: string[], content: string): Promise<boolean> => {
+    async (selectedEmotions: string[], content: string, images: string[] = []): Promise<boolean> => {
       if (!userId || !content.trim() || selectedEmotions.length === 0) return false;
 
       try {
+        // Upload images if any
+        let imageUrls: string[] = [];
+        if (images.length > 0) {
+          imageUrls = await uploadImages(userId, images);
+        }
+
         const aiAdvice = await generateAdvice(selectedEmotions, content);
-        const newEntry = {
+        const newEntry: Record<string, unknown> = {
           user_id: userId,
           date: getJstDateString(),
           emotions: [...selectedEmotions],
           content,
           aiAdvice,
         };
+
+        if (imageUrls.length > 0) {
+          newEntry.image_urls = imageUrls;
+        }
 
         const { data, error } = await supabase.from('entries').insert([newEntry]).select();
 
