@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Check } from 'lucide-react-native';
-import { emotions, emotionEmoji, emotionColors, emotionColorsSelected } from '../lib/constants';
+import EmotionIcon from './EmotionIcon';
+import { emotions, emotionColors, emotionColorsSelected } from '../lib/constants';
 import { colors } from '../theme/colors';
 import { borderRadius, fontSize, spacing } from '../theme/spacing';
 
@@ -36,7 +37,7 @@ export default function EmotionSelector({ selectedEmotions, onToggle }: EmotionS
                   <Check size={10} color={colors.green[600]} />
                 </View>
               )}
-              <Text style={styles.emoji}>{emotionEmoji[emotion]}</Text>
+              <EmotionIcon emotion={emotion} size={24} color={colorSet.text} />
               <Text style={[styles.emotionLabel, { color: colorSet.text }]}>{emotion}</Text>
             </Pressable>
           );
@@ -45,7 +46,7 @@ export default function EmotionSelector({ selectedEmotions, onToggle }: EmotionS
       {selectedEmotions.length > 0 && (
         <View style={styles.selectedInfo}>
           <Text style={styles.selectedText}>
-            選択中: {selectedEmotions.map((e) => `${emotionEmoji[e]}${e}`).join('、')}
+            選択中: {selectedEmotions.join('、')}
           </Text>
         </View>
       )}
@@ -85,9 +86,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderRadius: borderRadius.full,
     padding: 2,
-  },
-  emoji: {
-    fontSize: 24,
   },
   emotionLabel: {
     fontSize: fontSize.xs,

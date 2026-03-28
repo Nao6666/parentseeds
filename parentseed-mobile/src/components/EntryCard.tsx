@@ -1,30 +1,11 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
-import {
-  Smile,
-  AlertTriangle,
-  Zap,
-  CloudRain,
-  Battery,
-  X,
-  HeartHandshake,
-  Trash2,
-  Lightbulb,
-} from 'lucide-react-native';
+import { View, Text, Pressable, Image, StyleSheet } from 'react-native';
+import { Trash2, Lightbulb } from 'lucide-react-native';
+import EmotionIcon from './EmotionIcon';
 import { emotionColors } from '../lib/constants';
 import { colors } from '../theme/colors';
 import { borderRadius, fontSize, spacing } from '../theme/spacing';
 import type { Entry } from '../types';
-
-const iconMap: Record<string, React.ComponentType<{ size: number; color: string }>> = {
-  喜び: Smile,
-  不安: AlertTriangle,
-  怒り: Zap,
-  悲しみ: CloudRain,
-  疲労: Battery,
-  罪悪感: X,
-  愛情: HeartHandshake,
-};
 
 interface EntryCardProps {
   entry: Entry;
@@ -43,7 +24,6 @@ export default function EntryCard({ entry, onDelete }: EntryCardProps) {
 
       <View style={styles.emotionRow}>
         {entry.emotions.map((emotion) => {
-          const IconComponent = iconMap[emotion];
           const colorSet = emotionColors[emotion];
           return (
             <View
@@ -53,7 +33,7 @@ export default function EntryCard({ entry, onDelete }: EntryCardProps) {
                 { backgroundColor: colorSet?.bg || colors.gray[100], borderColor: colorSet?.border || colors.gray[200] },
               ]}
             >
-              {IconComponent && <IconComponent size={12} color={colorSet?.text || colors.gray[700]} />}
+              <EmotionIcon emotion={emotion} size={12} color={colorSet?.text || colors.gray[700]} />
               <Text style={[styles.badgeText, { color: colorSet?.text || colors.gray[700] }]}>
                 {emotion}
               </Text>
@@ -63,6 +43,14 @@ export default function EntryCard({ entry, onDelete }: EntryCardProps) {
       </View>
 
       <Text style={styles.content}>{entry.content}</Text>
+
+      {entry.image_urls && entry.image_urls.length > 0 && (
+        <View style={styles.imageRow}>
+          {entry.image_urls.map((url) => (
+            <Image key={url} source={{ uri: url }} style={styles.imageThumb} />
+          ))}
+        </View>
+      )}
 
       {entry.aiAdvice && (
         <View style={styles.adviceBox}>
@@ -119,6 +107,16 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: colors.gray[700],
     lineHeight: 22,
+  },
+  imageRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  imageThumb: {
+    width: 70,
+    height: 70,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.gray[100],
   },
   adviceBox: {
     backgroundColor: colors.blue[50],

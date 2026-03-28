@@ -1,16 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { TrendingUp } from 'lucide-react-native';
-import {
-  Smile,
-  AlertTriangle,
-  Zap,
-  CloudRain,
-  Battery,
-  X,
-  HeartHandshake,
-} from 'lucide-react-native';
 import Svg, { Line as SvgLine, Rect, Circle, G, Text as SvgText } from 'react-native-svg';
+import EmotionIcon from '../components/EmotionIcon';
 import ProgressBar from '../components/ProgressBar';
 import { useEntries } from '../hooks/useEntries';
 import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
@@ -21,16 +13,6 @@ import {
 import { emotions, emotionChartColors, emotionColors } from '../lib/constants';
 import { colors } from '../theme/colors';
 import { borderRadius, fontSize, spacing } from '../theme/spacing';
-
-const iconMap: Record<string, React.ComponentType<{ size: number; color: string }>> = {
-  喜び: Smile,
-  不安: AlertTriangle,
-  怒り: Zap,
-  悲しみ: CloudRain,
-  疲労: Battery,
-  罪悪感: X,
-  愛情: HeartHandshake,
-};
 
 const periods = [
   { value: '1week', label: '1週間' },
@@ -61,7 +43,6 @@ export default function InsightsScreen() {
 
   const emotionStats = useMemo(() => calcStatsFromEntries(entries), [entries]);
 
-  // Calculate chart scales
   const maxValue = useMemo(() => {
     let max = 1;
     timeSeriesData.forEach((d) => {
@@ -139,21 +120,8 @@ export default function InsightsScreen() {
               });
             }
 
-            // Line chart
-            const pathData = points
-              .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`)
-              .join(' ');
-
             return (
               <G key={emotion}>
-                <SvgLine
-                  x1={0}
-                  y1={0}
-                  x2={0}
-                  y2={0}
-                  stroke="none"
-                />
-                {/* Path as connected lines */}
                 {points.map((p, i) => {
                   if (i === 0) return null;
                   const prev = points[i - 1];
@@ -178,7 +146,6 @@ export default function InsightsScreen() {
 
           {/* X axis labels */}
           {timeSeriesData.map((d, i) => {
-            // Show every N labels to avoid overlap
             const showEvery = Math.max(1, Math.floor(timeSeriesData.length / 7));
             if (i % showEvery !== 0) return null;
             return (
@@ -211,7 +178,6 @@ export default function InsightsScreen() {
           <Text style={styles.subtitle}>感情の変化パターンを確認できます</Text>
         </View>
         <View style={styles.cardBody}>
-          {/* Period selector */}
           <View style={styles.selectorRow}>
             {periods.map((p) => (
               <Pressable
@@ -230,7 +196,6 @@ export default function InsightsScreen() {
               </Pressable>
             ))}
           </View>
-          {/* Chart type selector */}
           <View style={styles.selectorRow}>
             {chartTypes.map((t) => (
               <Pressable
@@ -260,7 +225,6 @@ export default function InsightsScreen() {
             ))}
           </View>
 
-          {/* Chart */}
           {renderChart()}
         </View>
       </View>
@@ -293,13 +257,12 @@ export default function InsightsScreen() {
         </View>
         <View style={styles.distributionGrid}>
           {emotions.map((emotion) => {
-            const IconComponent = iconMap[emotion];
             const count = emotionStats.emotionTotals?.[emotion] ?? 0;
             const colorSet = emotionColors[emotion];
             return (
               <View key={emotion} style={styles.distributionItem}>
                 <View style={[styles.distributionIcon, { backgroundColor: colorSet.bg }]}>
-                  {IconComponent && <IconComponent size={20} color={colorSet.text} />}
+                  <EmotionIcon emotion={emotion} size={20} color={colorSet.text} />
                 </View>
                 <Text style={styles.distributionLabel}>{emotion}</Text>
                 <Text style={styles.distributionCount}>{count}回</Text>
@@ -449,7 +412,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   distributionItem: {
-    width: '30%',
+    width: '22%',
     alignItems: 'center',
     paddingVertical: spacing.md,
     borderWidth: 1,
@@ -465,12 +428,12 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   distributionLabel: {
-    fontSize: fontSize.sm,
+    fontSize: fontSize.xs,
     fontWeight: '600',
     color: colors.gray[800],
   },
   distributionCount: {
-    fontSize: fontSize.lg,
+    fontSize: fontSize.base,
     fontWeight: '700',
     color: colors.gray[700],
   },

@@ -12,18 +12,6 @@ export const emotions = [
 
 export type EmotionType = (typeof emotions)[number];
 
-// Emoji for each emotion
-export const emotionEmoji: Record<string, string> = {
-  喜び: '😊',
-  信頼: '🤝',
-  恐れ: '😰',
-  驚き: '😲',
-  悲しみ: '😢',
-  嫌悪: '😣',
-  怒り: '😠',
-  期待: '🌟',
-};
-
 // Chart colors (hex) - プルチックの感情の輪に準拠した配色
 export const emotionChartColors: Record<string, string> = {
   喜び: '#fbbf24',     // 黄色
