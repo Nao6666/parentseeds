@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fdf2f8"/>
+      <stop offset="100%" stop-color="#fce7f3"/>
+    </linearGradient>
+    <linearGradient id="heart" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f472b6"/>
+      <stop offset="100%" stop-color="#ec4899"/>
+    </linearGradient>
+    <linearGradient id="stem" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="#059669"/>
+      <stop offset="100%" stop-color="#34d399"/>
+    </linearGradient>
+    <linearGradient id="leaf1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#34d399"/>
+      <stop offset="100%" stop-color="#10b981"/>
+    </linearGradient>
+    <linearGradient id="leaf2" x1="1" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6ee7b7"/>
+      <stop offset="100%" stop-color="#34d399"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="8" stdDeviation="20" flood-color="#00000020"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1024" height="1024" rx="224" fill="url(#bg)"/>
+
+  <!-- Subtle circle backdrop -->
+  <circle cx="512" cy="480" r="300" fill="#fce7f3" opacity="0.5"/>
+
+  <!-- Stem -->
+  <path d="M512 580 Q512 680 512 750" stroke="url(#stem)" stroke-width="18" fill="none" stroke-linecap="round"/>
+
+  <!-- Left leaf -->
+  <path d="M512 680 Q440 640 400 580 Q420 660 512 680Z" fill="url(#leaf1)"/>
+
+  <!-- Right leaf -->
+  <path d="M512 640 Q580 600 620 540 Q600 620 512 640Z" fill="url(#leaf2)"/>
+
+  <!-- Heart (main icon) -->
+  <path d="M512 560
+    C512 560 512 540 512 520
+    C512 440 440 360 370 360
+    C300 360 260 420 260 480
+    C260 580 380 660 512 740
+    C644 660 764 580 764 480
+    C764 420 724 360 654 360
+    C584 360 512 440 512 520
+    C512 540 512 560 512 560Z"
+    fill="url(#heart)" filter="url(#shadow)"/>
+
+  <!-- Small sparkle on heart -->
+  <circle cx="400" cy="440" r="20" fill="white" opacity="0.4"/>
+  <circle cx="380" cy="420" r="8" fill="white" opacity="0.6"/>
+
+  <!-- Seed dots at bottom -->
+  <circle cx="480" cy="820" r="12" fill="#d97706" opacity="0.6"/>
+  <circle cx="512" cy="830" r="16" fill="#f59e0b" opacity="0.7"/>
+  <circle cx="548" cy="818" r="10" fill="#d97706" opacity="0.5"/>
+
+  <!-- App name area: small seedling marks -->
+  <path d="M470 880 Q475 860 480 880" stroke="#34d399" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M510 875 Q515 855 520 875" stroke="#34d399" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M550 880 Q555 860 560 880" stroke="#34d399" stroke-width="3" fill="none" stroke-linecap="round"/>
+</svg>
