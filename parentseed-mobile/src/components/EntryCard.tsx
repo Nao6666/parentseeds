@@ -1,11 +1,13 @@
-import React from 'react';
-import { View, Text, Pressable, Image, StyleSheet } from 'react-native';
-import { Trash2, Lightbulb } from 'lucide-react-native';
+import React, { useState } from 'react';
+import { View, Text, Pressable, Image, StyleSheet, Modal, Dimensions } from 'react-native';
+import { Trash2, Lightbulb, X } from 'lucide-react-native';
 import EmotionIcon from './EmotionIcon';
 import { emotionColors } from '../lib/constants';
 import { colors } from '../theme/colors';
 import { borderRadius, fontSize, spacing } from '../theme/spacing';
 import type { Entry } from '../types';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 interface EntryCardProps {
   entry: Entry;
@@ -13,6 +15,8 @@ interface EntryCardProps {
 }
 
 export default function EntryCard({ entry, onDelete }: EntryCardProps) {
+  const [viewingImage, setViewingImage] = useState<string | null>(null);
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -47,7 +51,9 @@ export default function EntryCard({ entry, onDelete }: EntryCardProps) {
       {entry.image_urls && entry.image_urls.length > 0 && (
         <View style={styles.imageRow}>
           {entry.image_urls.map((url) => (
-            <Image key={url} source={{ uri: url }} style={styles.imageThumb} />
+            <Pressable key={url} onPress={() => setViewingImage(url)}>
+              <Image source={{ uri: url }} style={styles.imageThumb} />
+            </Pressable>
           ))}
         </View>
       )}
@@ -63,6 +69,23 @@ export default function EntryCard({ entry, onDelete }: EntryCardProps) {
           </View>
         </View>
       )}
+
+      {/* Full-screen image viewer */}
+      <Modal visible={viewingImage !== null} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <Pressable style={styles.closeButton} onPress={() => setViewingImage(null)}>
+            <X size={28} color={colors.white} />
+          </Pressable>
+          {viewingImage && (
+            <Image
+              source={{ uri: viewingImage }}
+              style={styles.fullImage}
+              resizeMode="contain"
+            />
+          )}
+          <Pressable style={styles.modalBackground} onPress={() => setViewingImage(null)} />
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -143,5 +166,26 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: colors.blue[700],
     lineHeight: 22,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalBackground: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: -1,
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 60,
+    right: 20,
+    zIndex: 10,
+    padding: 8,
+  },
+  fullImage: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT * 0.75,
   },
 });
