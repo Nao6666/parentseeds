@@ -1,10 +1,36 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import type { User } from '@supabase/supabase-js';
+import type { User, AuthError } from '@supabase/supabase-js';
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 
 WebBrowser.maybeCompleteAuthSession();
+
+/** Translate Supabase auth error messages to user-friendly Japanese. */
+function translateAuthError(error: AuthError): string {
+  const msg = error.message;
+
+  // Sign-up errors
+  if (/already (registered|exists|confirmed|signed up)/.test(msg)) {
+    return 'このメールアドレスは既に登録されています。';
+  }
+  if (/password/i.test(msg)) {
+    return 'パスワードは6文字以上で入力してください。';
+  }
+  if (/email/i.test(msg) && !/confirmed/i.test(msg)) {
+    return '有効なメールアドレスを入力してください。';
+  }
+
+  // Sign-in errors
+  if (msg.includes('Invalid login credentials')) {
+    return 'メールアドレスまたはパスワードが正しくありません。';
+  }
+  if (msg.includes('Email not confirmed')) {
+    return 'メールアドレスの確認が完了していません。確認メールを確認してください。';
+  }
+
+  return msg;
+}
 
 export function useSupabaseAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -21,58 +47,25 @@ export function useSupabaseAuth() {
       setUser(session?.user ?? null);
     });
 
-    return () => {
-      listener?.subscription.unsubscribe();
-    };
+    return () => listener?.subscription.unsubscribe();
   }, []);
 
   const signUp = useCallback(async (email: string, password: string) => {
     setLoading(true);
     setError(null);
-
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
+    const { error: authError } = await supabase.auth.signUp({ email, password });
     setLoading(false);
-
-    if (error) {
-      if (
-        error.message.includes('already registered') ||
-        error.message.includes('already been registered') ||
-        error.message.includes('already exists') ||
-        error.message.includes('already confirmed') ||
-        error.message.includes('User already registered') ||
-        error.message.includes('already signed up')
-      ) {
-        setError('このメールアドレスは既に登録されています。');
-      } else if (error.message.includes('password')) {
-        setError('パスワードは6文字以上で入力してください。');
-      } else if (error.message.includes('email')) {
-        setError('有効なメールアドレスを入力してください。');
-      } else {
-        setError(error.message);
-      }
-    }
-
-    return error;
+    if (authError) setError(translateAuthError(authError));
+    return authError;
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
     setLoading(true);
     setError(null);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
-    if (error) {
-      if (error.message.includes('Invalid login credentials')) {
-        setError('メールアドレスまたはパスワードが正しくありません。');
-      } else if (error.message.includes('Email not confirmed')) {
-        setError('メールアドレスの確認が完了していません。確認メールを確認してください。');
-      } else {
-        setError(error.message);
-      }
-    }
-    return error;
+    if (authError) setError(translateAuthError(authError));
+    return authError;
   }, []);
 
   const signInWithGoogle = useCallback(async () => {
@@ -81,27 +74,22 @@ export function useSupabaseAuth() {
 
     try {
       const redirectTo = AuthSession.makeRedirectUri({ scheme: 'parentseed' });
-
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: {
-          redirectTo,
-          skipBrowserRedirect: true,
-        },
+        options: { redirectTo, skipBrowserRedirect: true },
       });
 
-      if (error) {
-        setError(error.message);
+      if (oauthError) {
+        setError(oauthError.message);
         setLoading(false);
-        return error;
+        return oauthError;
       }
 
       if (data?.url) {
         const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
 
         if (result.type === 'success') {
-          const url = result.url;
-          // Extract tokens from URL fragment
+          const { url } = result;
           const hashParams = url.includes('#')
             ? new URLSearchParams(url.split('#')[1])
             : new URLSearchParams(new URL(url).search);
@@ -117,29 +105,29 @@ export function useSupabaseAuth() {
 
       setLoading(false);
       return null;
-    } catch (err) {
+    } catch {
       setError('Googleログインに失敗しました。');
       setLoading(false);
-      return { message: 'Googleログインに失敗しました。' };
+      return { message: 'Googleログインに失敗しました。' } as AuthError;
     }
   }, []);
 
   const resetPasswordForEmail = useCallback(async (email: string) => {
     setLoading(true);
     setError(null);
-    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    const { error: authError } = await supabase.auth.resetPasswordForEmail(email);
     setLoading(false);
-    if (error) setError(error.message);
-    return error;
+    if (authError) setError(authError.message);
+    return authError;
   }, []);
 
   const resetPassword = useCallback(async (newPassword: string) => {
     setLoading(true);
     setError(null);
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    const { error: authError } = await supabase.auth.updateUser({ password: newPassword });
     setLoading(false);
-    if (error) setError(error.message);
-    return error;
+    if (authError) setError(authError.message);
+    return authError;
   }, []);
 
   const deleteAccount = useCallback(async () => {
@@ -152,25 +140,32 @@ export function useSupabaseAuth() {
     setError(null);
 
     try {
-      // Delete user entries
-      const { error: dataError } = await supabase
-        .from('entries')
-        .delete()
-        .eq('user_id', user.id);
+      // Delete user data in parallel where possible
+      const [entriesResult, , chatResult] = await Promise.allSettled([
+        supabase.from('entries').delete().eq('user_id', user.id),
+        supabase.from('push_tokens').delete().eq('user_id', user.id),
+        supabase.from('chat_messages').delete().eq('user_id', user.id),
+      ]);
 
-      if (dataError) {
-        console.error('データ削除エラー:', dataError);
+      if (entriesResult.status === 'rejected') {
+        console.warn('Failed to delete entries:', entriesResult.reason);
+      }
+      if (chatResult.status === 'rejected') {
+        console.warn('Failed to delete chat messages:', chatResult.reason);
       }
 
-      // Delete push tokens
-      await supabase.from('push_tokens').delete().eq('user_id', user.id);
+      // Delete uploaded images
+      const { data: imageList } = await supabase.storage
+        .from('entry-images')
+        .list(user.id);
+      if (imageList && imageList.length > 0) {
+        const filePaths = imageList.map((f) => `${user.id}/${f.name}`);
+        await supabase.storage.from('entry-images').remove(filePaths);
+      }
 
       // Flag user as deleted
       const { error: updateError } = await supabase.auth.updateUser({
-        data: {
-          deleted: true,
-          deleted_at: new Date().toISOString(),
-        },
+        data: { deleted: true, deleted_at: new Date().toISOString() },
       });
 
       if (updateError) {
@@ -194,18 +189,17 @@ export function useSupabaseAuth() {
     setError(null);
 
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        setError(error.message);
-        setLoading(false);
-        return error;
+      const { error: authError } = await supabase.auth.signOut();
+      if (authError) {
+        setError(authError.message);
+        return authError;
       }
-      setLoading(false);
       return null;
     } catch {
       setError('ログアウト中にエラーが発生しました。');
+      return { message: 'ログアウト中にエラーが発生しました。' } as AuthError;
+    } finally {
       setLoading(false);
-      return { message: 'ログアウト中にエラーが発生しました。' };
     }
   }, []);
 

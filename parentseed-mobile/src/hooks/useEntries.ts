@@ -3,49 +3,61 @@ import { Alert } from 'react-native';
 import { supabase } from '../lib/supabaseClient';
 import { generateAdvice } from '../lib/api';
 import { getJstDateString } from '../lib/dateUtils';
-import type { Entry } from '../types';
+import { MAX_IMAGES_PER_ENTRY } from '../lib/constants';
+import type { Entry, EmotionType } from '../types';
 
-async function uploadImages(userId: string, images: string[]): Promise<string[]> {
+/** Upload images to Supabase Storage and return public URLs. */
+async function uploadImages(userId: string, imageUris: string[]): Promise<string[]> {
   const urls: string[] = [];
 
-  for (const uri of images) {
-    const fileName = `${userId}/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`;
+  for (const uri of imageUris) {
+    try {
+      const fileName = `${userId}/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`;
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      const arrayBuffer = await new Response(blob).arrayBuffer();
 
-    const response = await fetch(uri);
-    const blob = await response.blob();
+      const { error } = await supabase.storage
+        .from('entry-images')
+        .upload(fileName, arrayBuffer, { contentType: 'image/jpeg', upsert: false });
 
-    // Convert blob to ArrayBuffer
-    const arrayBuffer = await new Response(blob).arrayBuffer();
+      if (error) {
+        console.warn('Image upload failed:', error.message);
+        continue;
+      }
 
-    const { error } = await supabase.storage
-      .from('entry-images')
-      .upload(fileName, arrayBuffer, {
-        contentType: 'image/jpeg',
-        upsert: false,
-      });
-
-    if (error) {
-      console.error('Image upload error:', error);
-      continue;
-    }
-
-    const { data: urlData } = supabase.storage
-      .from('entry-images')
-      .getPublicUrl(fileName);
-
-    if (urlData?.publicUrl) {
-      urls.push(urlData.publicUrl);
+      const { data: urlData } = supabase.storage.from('entry-images').getPublicUrl(fileName);
+      if (urlData?.publicUrl) {
+        urls.push(urlData.publicUrl);
+      }
+    } catch (err) {
+      console.warn('Image upload error:', err);
     }
   }
 
   return urls;
 }
 
+/** Fetch entries query shared between initial load and refresh. */
+async function fetchEntries(userId: string): Promise<Entry[]> {
+  const { data, error } = await supabase
+    .from('entries')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching entries:', error);
+    throw error;
+  }
+
+  return (data as Entry[]) ?? [];
+}
+
 export function useEntries(userId: string | undefined) {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch entries on mount and when userId changes
   useEffect(() => {
     if (!userId) {
       setEntries([]);
@@ -54,71 +66,61 @@ export function useEntries(userId: string | undefined) {
     }
 
     setLoading(true);
-    supabase
-      .from('entries')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .then(({ data, error }) => {
-        if (error) {
-          console.error('Error fetching entries:', error);
-          Alert.alert('エラー', '記録の取得に失敗しました。');
-        } else {
-          setEntries(data || []);
-        }
-        setLoading(false);
-      });
+    fetchEntries(userId)
+      .then(setEntries)
+      .catch(() => Alert.alert('エラー', '記録の取得に失敗しました。'))
+      .finally(() => setLoading(false));
   }, [userId]);
 
   const saveEntry = useCallback(
-    async (selectedEmotions: string[], content: string, images: string[] = []): Promise<boolean> => {
+    async (
+      selectedEmotions: EmotionType[],
+      content: string,
+      images: string[] = [],
+    ): Promise<boolean> => {
       if (!userId || !content.trim() || selectedEmotions.length === 0) return false;
 
       try {
-        // Upload images if any
-        let imageUrls: string[] = [];
-        if (images.length > 0) {
-          imageUrls = await uploadImages(userId, images);
-        }
+        const limitedImages = images.slice(0, MAX_IMAGES_PER_ENTRY);
+        const imageUrls = limitedImages.length > 0
+          ? await uploadImages(userId, limitedImages)
+          : [];
 
         const aiAdvice = await generateAdvice(selectedEmotions, content);
+
         const newEntry: Record<string, unknown> = {
           user_id: userId,
           date: getJstDateString(),
           emotions: [...selectedEmotions],
           content,
           aiAdvice,
+          ...(imageUrls.length > 0 && { image_urls: imageUrls }),
         };
-
-        if (imageUrls.length > 0) {
-          newEntry.image_urls = imageUrls;
-        }
 
         const { data, error } = await supabase.from('entries').insert([newEntry]).select();
 
         if (error) {
-          console.error('Error saving entry:', error);
           Alert.alert('エラー', '記録の保存に失敗しました。');
           return false;
         }
 
-        if (data && data[0]) {
-          setEntries((prev) => [data[0], ...prev]);
+        if (data?.[0]) {
+          setEntries((prev) => [data[0] as Entry, ...prev]);
           Alert.alert('完了', '記録が正常に保存されました。');
           return true;
         }
         return false;
       } catch (error) {
-        console.error('Error in saveEntry:', error);
+        console.error('saveEntry failed:', error);
         Alert.alert('エラー', '記録の保存中にエラーが発生しました。');
         return false;
       }
     },
-    [userId]
+    [userId],
   );
 
   const deleteEntry = useCallback(
-    async (entryId: string) => {
+    (entryId: string) => {
       Alert.alert('確認', 'この記録を削除しますか？', [
         { text: 'キャンセル', style: 'cancel' },
         {
@@ -128,36 +130,31 @@ export function useEntries(userId: string | undefined) {
             try {
               const { error } = await supabase.from('entries').delete().eq('id', entryId);
               if (error) {
-                console.error('Error deleting entry:', error);
                 Alert.alert('エラー', '記録の削除に失敗しました。');
               } else {
-                setEntries((prev) => prev.filter((entry) => entry.id !== entryId));
-                Alert.alert('完了', '記録が正常に削除されました。');
+                setEntries((prev) => prev.filter((e) => e.id !== entryId));
               }
-            } catch (error) {
-              console.error('Error in deleteEntry:', error);
+            } catch {
               Alert.alert('エラー', '記録の削除中にエラーが発生しました。');
             }
           },
         },
       ]);
     },
-    []
+    [],
   );
 
   const refresh = useCallback(async () => {
     if (!userId) return;
     setLoading(true);
-    const { data, error } = await supabase
-      .from('entries')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-
-    if (!error) {
-      setEntries(data || []);
+    try {
+      const data = await fetchEntries(userId);
+      setEntries(data);
+    } catch {
+      // Silent fail on refresh — data shown is still valid
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [userId]);
 
   return { entries, loading, saveEntry, deleteEntry, refresh };

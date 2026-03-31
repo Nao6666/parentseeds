@@ -3,11 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import LoginScreen from '../screens/LoginScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import { colors } from '../theme/colors';
-
-export type AuthStackParamList = {
-  Login: undefined;
-  ForgotPassword: undefined;
-};
+import type { AuthStackParamList } from '../types';
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
 

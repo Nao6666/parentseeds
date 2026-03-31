@@ -1,14 +1,22 @@
 import { NextRequest } from "next/server";
+import { callAnthropic } from "@/lib/anthropic";
 
 export async function POST(request: NextRequest) {
   try {
     const { emotions, content } = await request.json();
 
+    if (!emotions?.length || !content) {
+      return Response.json(
+        { error: "感情と内容が必要です" },
+        { status: 400 },
+      );
+    }
+
     const prompt = `
 あなたは育児中の親を応援する温かいサポーターです。
 投稿者が「記録してよかった」「自分は頑張っている」と感じられるような、前向きで勇気づけられるメッセージを届けてください。
 
-【投稿者の感情】${emotions.join("、")}
+【投稿者の感情】${(emotions as string[]).join("、")}
 【投稿者の記録】${content}
 
 【メッセージ作成のルール】
@@ -23,33 +31,15 @@ export async function POST(request: NextRequest) {
 メッセージ:
 `;
 
-    const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": anthropicApiKey!,
-        "content-type": "application/json",
-        "anthropic-version": "2023-06-01"
-      },
-      body: JSON.stringify({
-        model: "claude-3-haiku-20240307",
-        max_tokens: 256,
-        messages: [
-          { role: "user", content: prompt }
-        ]
-      })
+    const advice = await callAnthropic({ prompt, maxTokens: 256 });
+    return Response.json({
+      advice: advice || "アドバイスの生成に失敗しました",
     });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      return new Response(JSON.stringify({ error: errorText }), { status: 500 });
-    }
-
-    const data = await response.json();
-    const advice = data.content?.[0]?.text || "アドバイスの生成に失敗しました";
-    return Response.json({ advice });
   } catch (error) {
-    console.error("Error generating advice:", error);
-    return Response.json({ error: "アドバイスの生成に失敗しました" }, { status: 500 });
+    console.error("Advice API error:", error);
+    return Response.json(
+      { error: "アドバイスの生成に失敗しました" },
+      { status: 500 },
+    );
   }
 }

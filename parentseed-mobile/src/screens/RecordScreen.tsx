@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -17,63 +17,58 @@ import * as ImagePicker from 'expo-image-picker';
 import EmotionSelector from '../components/EmotionSelector';
 import { useEntries } from '../hooks/useEntries';
 import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
+import { MAX_IMAGES_PER_ENTRY } from '../lib/constants';
 import { colors } from '../theme/colors';
 import { borderRadius, fontSize, spacing } from '../theme/spacing';
+import type { EmotionType } from '../types';
 
 export default function RecordScreen() {
   const { user } = useSupabaseAuth();
   const { saveEntry } = useEntries(user?.id);
   const [currentEntry, setCurrentEntry] = useState('');
-  const [selectedEmotions, setSelectedEmotions] = useState<string[]>([]);
+  const [selectedEmotions, setSelectedEmotions] = useState<EmotionType[]>([]);
   const [isGeneratingAdvice, setIsGeneratingAdvice] = useState(false);
   const [images, setImages] = useState<string[]>([]);
   const scrollViewRef = useRef<ScrollView>(null);
 
-  const toggleEmotion = (emotion: string) => {
+  const toggleEmotion = useCallback((emotion: EmotionType) => {
     setSelectedEmotions((prev) =>
-      prev.includes(emotion) ? prev.filter((e) => e !== emotion) : [...prev, emotion]
+      prev.includes(emotion) ? prev.filter((e) => e !== emotion) : [...prev, emotion],
     );
-  };
+  }, []);
 
-  const pickImage = async () => {
+  const pickImage = useCallback(async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      return;
-    }
+    if (status !== 'granted') return;
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsMultipleSelection: true,
-      selectionLimit: 3 - images.length,
+      selectionLimit: MAX_IMAGES_PER_ENTRY - images.length,
       quality: 0.7,
     });
 
     if (!result.canceled) {
-      const newImages = result.assets.map((asset) => asset.uri);
-      setImages((prev) => [...prev, ...newImages].slice(0, 3));
+      const newUris = result.assets.map((a) => a.uri);
+      setImages((prev) => [...prev, ...newUris].slice(0, MAX_IMAGES_PER_ENTRY));
     }
-  };
+  }, [images.length]);
 
-  const takePhoto = async () => {
+  const takePhoto = useCallback(async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      return;
-    }
+    if (status !== 'granted') return;
 
-    const result = await ImagePicker.launchCameraAsync({
-      quality: 0.7,
-    });
-
+    const result = await ImagePicker.launchCameraAsync({ quality: 0.7 });
     if (!result.canceled) {
-      setImages((prev) => [...prev, result.assets[0].uri].slice(0, 3));
+      setImages((prev) => [...prev, result.assets[0].uri].slice(0, MAX_IMAGES_PER_ENTRY));
     }
-  };
+  }, []);
 
-  const removeImage = (index: number) => {
+  const removeImage = useCallback((index: number) => {
     setImages((prev) => prev.filter((_, i) => i !== index));
-  };
+  }, []);
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     if (!currentEntry.trim() || selectedEmotions.length === 0) return;
     Keyboard.dismiss();
 
@@ -85,14 +80,13 @@ export default function RecordScreen() {
       setImages([]);
     }
     setIsGeneratingAdvice(false);
-  };
+  }, [currentEntry, selectedEmotions, images, saveEntry]);
 
-  const handleTextFocus = () => {
-    setTimeout(() => {
-      scrollViewRef.current?.scrollToEnd({ animated: true });
-    }, 300);
-  };
+  const handleTextFocus = useCallback(() => {
+    setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 300);
+  }, []);
 
+  const isImagesFull = images.length >= MAX_IMAGES_PER_ENTRY;
   const canSave = currentEntry.trim().length > 0 && selectedEmotions.length > 0 && !isGeneratingAdvice;
 
   return (
@@ -137,27 +131,26 @@ export default function RecordScreen() {
               />
             </View>
 
-            {/* 画像添付 */}
             <View>
-              <Text style={styles.label}>写真を添付（最大3枚）</Text>
+              <Text style={styles.label}>写真を添付（最大{MAX_IMAGES_PER_ENTRY}枚）</Text>
               <View style={styles.imageActions}>
                 <Pressable
-                  style={[styles.imageButton, images.length >= 3 && styles.imageButtonDisabled]}
+                  style={[styles.imageButton, isImagesFull && styles.imageButtonDisabled]}
                   onPress={pickImage}
-                  disabled={images.length >= 3}
+                  disabled={isImagesFull}
                 >
-                  <ImageIcon size={18} color={images.length >= 3 ? colors.gray[300] : colors.secondary} />
-                  <Text style={[styles.imageButtonText, images.length >= 3 && styles.imageButtonTextDisabled]}>
+                  <ImageIcon size={18} color={isImagesFull ? colors.gray[300] : colors.secondary} />
+                  <Text style={[styles.imageButtonText, isImagesFull && styles.imageButtonTextDisabled]}>
                     アルバム
                   </Text>
                 </Pressable>
                 <Pressable
-                  style={[styles.imageButton, images.length >= 3 && styles.imageButtonDisabled]}
+                  style={[styles.imageButton, isImagesFull && styles.imageButtonDisabled]}
                   onPress={takePhoto}
-                  disabled={images.length >= 3}
+                  disabled={isImagesFull}
                 >
-                  <Camera size={18} color={images.length >= 3 ? colors.gray[300] : colors.secondary} />
-                  <Text style={[styles.imageButtonText, images.length >= 3 && styles.imageButtonTextDisabled]}>
+                  <Camera size={18} color={isImagesFull ? colors.gray[300] : colors.secondary} />
+                  <Text style={[styles.imageButtonText, isImagesFull && styles.imageButtonTextDisabled]}>
                     カメラ
                   </Text>
                 </Pressable>

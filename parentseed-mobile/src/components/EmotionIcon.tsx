@@ -1,14 +1,13 @@
-import React from 'react';
+import React, { memo } from 'react';
 import Svg, { Path, Circle } from 'react-native-svg';
+import type { EmotionType } from '../types';
 
-interface EmotionIconProps {
-  emotion: string;
-  size?: number;
-  color?: string;
+interface IconProps {
+  size: number;
+  color: string;
 }
 
-// 喜び - 笑顔
-function JoyIcon({ size, color }: { size: number; color: string }) {
+function JoyIcon({ size, color }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Circle cx={12} cy={12} r={10} stroke={color} strokeWidth={2} />
@@ -19,8 +18,7 @@ function JoyIcon({ size, color }: { size: number; color: string }) {
   );
 }
 
-// 信頼 - ハートと手
-function TrustIcon({ size, color }: { size: number; color: string }) {
+function TrustIcon({ size, color }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path d="M12 21C12 21 4 15 4 9.5C4 7 6 5 8.5 5C10 5 11.5 6 12 7.5C12.5 6 14 5 15.5 5C18 5 20 7 20 9.5C20 15 12 21 12 21Z" stroke={color} strokeWidth={2} strokeLinejoin="round" />
@@ -29,8 +27,7 @@ function TrustIcon({ size, color }: { size: number; color: string }) {
   );
 }
 
-// 恐れ - 震えるシールド
-function FearIcon({ size, color }: { size: number; color: string }) {
+function FearIcon({ size, color }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path d="M12 2L4 6V12C4 17 8 20.5 12 22C16 20.5 20 17 20 12V6L12 2Z" stroke={color} strokeWidth={2} strokeLinejoin="round" />
@@ -40,8 +37,7 @@ function FearIcon({ size, color }: { size: number; color: string }) {
   );
 }
 
-// 驚き - スターバースト
-function SurpriseIcon({ size, color }: { size: number; color: string }) {
+function SurpriseIcon({ size, color }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path d="M12 2L14.5 8.5L21 9.5L16 14L17.5 21L12 17.5L6.5 21L8 14L3 9.5L9.5 8.5L12 2Z" stroke={color} strokeWidth={2} strokeLinejoin="round" />
@@ -50,8 +46,7 @@ function SurpriseIcon({ size, color }: { size: number; color: string }) {
   );
 }
 
-// 悲しみ - 涙
-function SadnessIcon({ size, color }: { size: number; color: string }) {
+function SadnessIcon({ size, color }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Circle cx={12} cy={12} r={10} stroke={color} strokeWidth={2} />
@@ -63,8 +58,7 @@ function SadnessIcon({ size, color }: { size: number; color: string }) {
   );
 }
 
-// 嫌悪 - しかめっ面
-function DisgustIcon({ size, color }: { size: number; color: string }) {
+function DisgustIcon({ size, color }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Circle cx={12} cy={12} r={10} stroke={color} strokeWidth={2} />
@@ -77,8 +71,7 @@ function DisgustIcon({ size, color }: { size: number; color: string }) {
   );
 }
 
-// 怒り - 炎
-function AngerIcon({ size, color }: { size: number; color: string }) {
+function AngerIcon({ size, color }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path d="M12 22C8 22 5 19 5 15C5 11 8 8 9 6C9.5 8 11 9 12 9C11 7 11 4 13 2C14 5 17 7 17 11C18 11 19 10 19 10C19 10 19 19 12 22Z" stroke={color} strokeWidth={2} strokeLinejoin="round" />
@@ -87,8 +80,7 @@ function AngerIcon({ size, color }: { size: number; color: string }) {
   );
 }
 
-// 期待 - 日の出
-function AnticipationIcon({ size, color }: { size: number; color: string }) {
+function AnticipationIcon({ size, color }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path d="M12 2V5" stroke={color} strokeWidth={2} strokeLinecap="round" />
@@ -101,7 +93,7 @@ function AnticipationIcon({ size, color }: { size: number; color: string }) {
   );
 }
 
-const iconComponents: Record<string, React.FC<{ size: number; color: string }>> = {
+const iconComponents: Record<EmotionType, React.FC<IconProps>> = {
   喜び: JoyIcon,
   信頼: TrustIcon,
   恐れ: FearIcon,
@@ -112,10 +104,17 @@ const iconComponents: Record<string, React.FC<{ size: number; color: string }>> 
   期待: AnticipationIcon,
 };
 
-export default function EmotionIcon({ emotion, size = 24, color = '#000' }: EmotionIconProps) {
-  const IconComponent = iconComponents[emotion];
+interface EmotionIconProps {
+  emotion: string;
+  size?: number;
+  color?: string;
+}
+
+function EmotionIcon({ emotion, size = 24, color = '#000' }: EmotionIconProps) {
+  const IconComponent = iconComponents[emotion as EmotionType];
   if (!IconComponent) return null;
   return <IconComponent size={size} color={color} />;
 }
 
+export default memo(EmotionIcon);
 export { iconComponents };

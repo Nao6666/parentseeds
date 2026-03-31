@@ -12,8 +12,10 @@ import {
   Alert,
 } from 'react-native';
 import { Bot, Send, ExternalLink, Plus } from 'lucide-react-native';
+import * as Crypto from 'expo-crypto';
 import ChatBubble, { TypingIndicator } from '../components/ChatBubble';
 import { sendChatMessage } from '../lib/api';
+import { MAX_CHAT_MESSAGE_LENGTH } from '../lib/constants';
 import { supabase } from '../lib/supabaseClient';
 import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
 import { colors } from '../theme/colors';
@@ -21,18 +23,17 @@ import { borderRadius, fontSize, spacing } from '../theme/spacing';
 import type { ChatMessage } from '../types';
 
 const INITIAL_MESSAGE: ChatMessage = {
-  id: 1,
+  id: 0,
   role: 'assistant',
   content:
     'こんにちは！私はParentSeedのAIアシスタントです。育児中の感情や悩みについて、いつでもお気軽にご相談ください。どのようなことでお困りですか？',
   timestamp: new Date(),
 };
 
-function generateSessionId() {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
-  });
+const GOVERNMENT_RESOURCE_URL = 'https://www.cfa.go.jp/children-inquiries';
+
+function generateSessionId(): string {
+  return Crypto.randomUUID();
 }
 
 export default function CounselorScreen() {
@@ -47,8 +48,9 @@ export default function CounselorScreen() {
   useEffect(() => {
     if (!user?.id) return;
 
+    let cancelled = false;
+
     (async () => {
-      // Get the latest session
       const { data: latestMsg } = await supabase
         .from('chat_messages')
         .select('session_id')
@@ -56,29 +58,30 @@ export default function CounselorScreen() {
         .order('created_at', { ascending: false })
         .limit(1);
 
-      if (latestMsg && latestMsg.length > 0) {
-        const latestSessionId = latestMsg[0].session_id;
-        setSessionId(latestSessionId);
+      if (cancelled || !latestMsg?.length) return;
 
-        // Load messages for this session
-        const { data: sessionMessages } = await supabase
-          .from('chat_messages')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('session_id', latestSessionId)
-          .order('created_at', { ascending: true });
+      const loadedSessionId = latestMsg[0].session_id;
+      setSessionId(loadedSessionId);
 
-        if (sessionMessages && sessionMessages.length > 0) {
-          const loaded: ChatMessage[] = sessionMessages.map((m, i) => ({
-            id: i + 1,
-            role: m.role as 'user' | 'assistant',
-            content: m.content,
-            timestamp: new Date(m.created_at),
-          }));
-          setMessages([INITIAL_MESSAGE, ...loaded]);
-        }
-      }
+      const { data: sessionMessages } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('session_id', loadedSessionId)
+        .order('created_at', { ascending: true });
+
+      if (cancelled || !sessionMessages?.length) return;
+
+      const loaded: ChatMessage[] = sessionMessages.map((m, i) => ({
+        id: i + 1,
+        role: m.role as 'user' | 'assistant',
+        content: m.content as string,
+        timestamp: new Date(m.created_at as string),
+      }));
+      setMessages([INITIAL_MESSAGE, ...loaded]);
     })();
+
+    return () => { cancelled = true; };
   }, [user?.id]);
 
   const saveMessage = useCallback(
@@ -91,10 +94,10 @@ export default function CounselorScreen() {
         content,
       });
     },
-    [user?.id, sessionId]
+    [user?.id, sessionId],
   );
 
-  const handleNewSession = () => {
+  const handleNewSession = useCallback(() => {
     Alert.alert('新しい相談', '新しい相談を始めますか？', [
       { text: 'キャンセル', style: 'cancel' },
       {
@@ -105,28 +108,32 @@ export default function CounselorScreen() {
         },
       },
     ]);
-  };
+  }, []);
 
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+  const handleSend = useCallback(async () => {
+    const trimmed = input.trim();
+    if (!trimmed || isLoading) return;
 
     const userMessage: ChatMessage = {
       id: messages.length + 1,
       role: 'user',
-      content: input,
+      content: trimmed,
       timestamp: new Date(),
     };
 
     setMessages((prev) => [...prev, userMessage]);
-    const currentInput = input;
     setInput('');
     setIsLoading(true);
 
-    // Save user message
-    await saveMessage('user', currentInput);
+    await saveMessage('user', trimmed);
 
     try {
-      const response = await sendChatMessage(currentInput, messages);
+      // Build history from messages (excluding the initial greeting)
+      const history = messages
+        .filter((m) => m.id > 0)
+        .map(({ role, content }) => ({ role, content }));
+
+      const response = await sendChatMessage(trimmed, history);
       const aiMessage: ChatMessage = {
         id: messages.length + 2,
         role: 'assistant',
@@ -134,24 +141,26 @@ export default function CounselorScreen() {
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, aiMessage]);
-
-      // Save AI response
       await saveMessage('assistant', response);
     } catch {
       const errorMessage: ChatMessage = {
         id: messages.length + 2,
         role: 'assistant',
-        content:
-          '申し訳ございません。現在AIサービスに接続できません。しばらく時間をおいてから再度お試しください。',
+        content: '申し訳ございません。現在AIサービスに接続できません。しばらく時間をおいてから再度お試しください。',
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [input, isLoading, messages, saveMessage]);
 
-  const renderMessage = ({ item }: { item: ChatMessage }) => <ChatBubble message={item} />;
+  const renderMessage = useCallback(
+    ({ item }: { item: ChatMessage }) => <ChatBubble message={item} />,
+    [],
+  );
+
+  const isInputDisabled = !input.trim() || isLoading;
 
   return (
     <KeyboardAvoidingView
@@ -159,7 +168,6 @@ export default function CounselorScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={90}
     >
-      {/* Chat Messages */}
       <FlatList
         ref={flatListRef}
         data={messages}
@@ -170,7 +178,6 @@ export default function CounselorScreen() {
         ListFooterComponent={isLoading ? <TypingIndicator /> : null}
       />
 
-      {/* Input */}
       <View style={styles.inputContainer}>
         <View style={styles.inputRow}>
           <Pressable style={styles.newSessionButton} onPress={handleNewSession}>
@@ -183,30 +190,28 @@ export default function CounselorScreen() {
             value={input}
             onChangeText={setInput}
             multiline
-            maxLength={1000}
+            maxLength={MAX_CHAT_MESSAGE_LENGTH}
             editable={!isLoading}
             returnKeyType="send"
             blurOnSubmit={false}
             onSubmitEditing={handleSend}
           />
           <Pressable
-            style={[styles.sendButton, (!input.trim() || isLoading) && styles.sendButtonDisabled]}
+            style={[styles.sendButton, isInputDisabled && styles.sendButtonDisabled]}
             onPress={handleSend}
-            disabled={!input.trim() || isLoading}
+            disabled={isInputDisabled}
           >
             <Send size={18} color={colors.white} />
           </Pressable>
         </View>
 
-        {/* Disclaimer */}
         <Text style={styles.disclaimerText}>
           深刻な問題の場合は、専門のカウンセラーにご相談ください。
         </Text>
 
-        {/* Government resource link */}
         <Pressable
           style={styles.resourceButton}
-          onPress={() => Linking.openURL('https://www.cfa.go.jp/children-inquiries')}
+          onPress={() => Linking.openURL(GOVERNMENT_RESOURCE_URL)}
         >
           <Bot size={14} color={colors.white} />
           <Text style={styles.resourceButtonText}>こども家庭庁 相談窓口へ</Text>
