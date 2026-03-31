@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { TrendingUp } from 'lucide-react-native';
 import Svg, { Line as SvgLine, Rect, Circle, G, Text as SvgText } from 'react-native-svg';
@@ -6,22 +6,20 @@ import EmotionIcon from '../components/EmotionIcon';
 import ProgressBar from '../components/ProgressBar';
 import { useEntries } from '../hooks/useEntries';
 import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
-import {
-  generateTimeSeriesDataFromEntries,
-  calcStatsFromEntries,
-} from '../lib/statsUtils';
-import { emotions, emotionChartColors, emotionColors } from '../lib/constants';
+import { generateTimeSeriesData, calcStatsFromEntries } from '../lib/statsUtils';
+import { emotions, getChartColor, getNormalColors } from '../lib/constants';
 import { colors } from '../theme/colors';
 import { borderRadius, fontSize, spacing } from '../theme/spacing';
+import type { ChartPeriod, ChartType, EmotionType } from '../types';
 
-const periods = [
+const PERIODS: { value: ChartPeriod; label: string }[] = [
   { value: '1week', label: '1週間' },
   { value: '2weeks', label: '2週間' },
   { value: '1month', label: '1ヶ月' },
   { value: '3months', label: '3ヶ月' },
 ];
 
-const chartTypes = [
+const CHART_TYPES: { value: ChartType; label: string }[] = [
   { value: 'line', label: '線' },
   { value: 'bar', label: '棒' },
 ];
@@ -33,31 +31,31 @@ const PADDING = { top: 20, right: 10, bottom: 30, left: 30 };
 export default function InsightsScreen() {
   const { user } = useSupabaseAuth();
   const { entries } = useEntries(user?.id);
-  const [chartPeriod, setChartPeriod] = useState('2weeks');
-  const [chartType, setChartType] = useState('line');
+  const [chartPeriod, setChartPeriod] = useState<ChartPeriod>('2weeks');
+  const [chartType, setChartType] = useState<ChartType>('line');
 
   const timeSeriesData = useMemo(
-    () => generateTimeSeriesDataFromEntries(entries, chartPeriod),
-    [entries, chartPeriod]
+    () => generateTimeSeriesData(entries, chartPeriod),
+    [entries, chartPeriod],
   );
 
   const emotionStats = useMemo(() => calcStatsFromEntries(entries), [entries]);
 
   const maxValue = useMemo(() => {
     let max = 1;
-    timeSeriesData.forEach((d) => {
-      emotions.forEach((e) => {
-        const val = (d[e] as number) || 0;
+    for (const d of timeSeriesData) {
+      for (const e of emotions) {
+        const val = (d[e] as number) ?? 0;
         if (val > max) max = val;
-      });
-    });
+      }
+    }
     return max;
   }, [timeSeriesData]);
 
   const plotWidth = CHART_WIDTH - PADDING.left - PADDING.right;
   const plotHeight = CHART_HEIGHT - PADDING.top - PADDING.bottom;
 
-  const renderChart = () => {
+  const renderChart = useCallback(() => {
     if (timeSeriesData.length === 0) {
       return (
         <View style={styles.noData}>
@@ -67,23 +65,19 @@ export default function InsightsScreen() {
     }
 
     const xStep = plotWidth / Math.max(timeSeriesData.length - 1, 1);
+    const gridRatios = [0, 0.25, 0.5, 0.75, 1];
 
     return (
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <Svg width={Math.max(CHART_WIDTH, timeSeriesData.length * 30)} height={CHART_HEIGHT}>
-          {/* Grid lines */}
-          {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
+          {gridRatios.map((ratio) => {
             const y = PADDING.top + plotHeight * (1 - ratio);
             return (
               <G key={ratio}>
                 <SvgLine
-                  x1={PADDING.left}
-                  y1={y}
-                  x2={PADDING.left + plotWidth}
-                  y2={y}
-                  stroke={colors.gray[200]}
-                  strokeWidth={1}
-                  strokeDasharray="4,4"
+                  x1={PADDING.left} y1={y}
+                  x2={PADDING.left + plotWidth} y2={y}
+                  stroke={colors.gray[200]} strokeWidth={1} strokeDasharray="4,4"
                 />
                 <SvgText x={2} y={y + 4} fontSize={10} fill={colors.gray[400]}>
                   {Math.round(maxValue * ratio)}
@@ -92,12 +86,11 @@ export default function InsightsScreen() {
             );
           })}
 
-          {/* Data */}
           {emotions.map((emotion) => {
-            const color = emotionChartColors[emotion];
+            const color = getChartColor(emotion);
             const points = timeSeriesData.map((d, i) => ({
               x: PADDING.left + i * xStep,
-              y: PADDING.top + plotHeight * (1 - ((d[emotion] as number) || 0) / maxValue),
+              y: PADDING.top + plotHeight * (1 - ((d[emotion] as number) ?? 0) / maxValue),
             }));
 
             if (chartType === 'bar') {
@@ -127,30 +120,25 @@ export default function InsightsScreen() {
                   const prev = points[i - 1];
                   return (
                     <SvgLine
-                      key={`${emotion}-line-${i}`}
-                      x1={prev.x}
-                      y1={prev.y}
-                      x2={p.x}
-                      y2={p.y}
-                      stroke={color}
-                      strokeWidth={2}
+                      key={`line-${emotion}-${i}`}
+                      x1={prev.x} y1={prev.y} x2={p.x} y2={p.y}
+                      stroke={color} strokeWidth={2}
                     />
                   );
                 })}
                 {points.map((p, i) => (
-                  <Circle key={`${emotion}-dot-${i}`} cx={p.x} cy={p.y} r={3} fill={color} />
+                  <Circle key={`dot-${emotion}-${i}`} cx={p.x} cy={p.y} r={3} fill={color} />
                 ))}
               </G>
             );
           })}
 
-          {/* X axis labels */}
           {timeSeriesData.map((d, i) => {
             const showEvery = Math.max(1, Math.floor(timeSeriesData.length / 7));
             if (i % showEvery !== 0) return null;
             return (
               <SvgText
-                key={i}
+                key={`label-${i}`}
                 x={PADDING.left + i * xStep}
                 y={CHART_HEIGHT - 5}
                 fontSize={9}
@@ -164,11 +152,10 @@ export default function InsightsScreen() {
         </Svg>
       </ScrollView>
     );
-  };
+  }, [timeSeriesData, chartType, maxValue, plotWidth, plotHeight]);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Chart Card */}
       <View style={styles.card}>
         <View style={styles.cardHeader}>
           <View style={styles.titleRow}>
@@ -179,47 +166,36 @@ export default function InsightsScreen() {
         </View>
         <View style={styles.cardBody}>
           <View style={styles.selectorRow}>
-            {periods.map((p) => (
+            {PERIODS.map((p) => (
               <Pressable
                 key={p.value}
                 style={[styles.selectorBtn, chartPeriod === p.value && styles.selectorBtnActive]}
                 onPress={() => setChartPeriod(p.value)}
               >
-                <Text
-                  style={[
-                    styles.selectorText,
-                    chartPeriod === p.value && styles.selectorTextActive,
-                  ]}
-                >
+                <Text style={[styles.selectorText, chartPeriod === p.value && styles.selectorTextActive]}>
                   {p.label}
                 </Text>
               </Pressable>
             ))}
           </View>
           <View style={styles.selectorRow}>
-            {chartTypes.map((t) => (
+            {CHART_TYPES.map((t) => (
               <Pressable
                 key={t.value}
                 style={[styles.selectorBtn, chartType === t.value && styles.selectorBtnActive]}
                 onPress={() => setChartType(t.value)}
               >
-                <Text
-                  style={[
-                    styles.selectorText,
-                    chartType === t.value && styles.selectorTextActive,
-                  ]}
-                >
+                <Text style={[styles.selectorText, chartType === t.value && styles.selectorTextActive]}>
                   {t.label}
                 </Text>
               </Pressable>
             ))}
           </View>
 
-          {/* Legend */}
           <View style={styles.legend}>
             {emotions.map((e) => (
               <View key={e} style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: emotionChartColors[e] }]} />
+                <View style={[styles.legendDot, { backgroundColor: getChartColor(e) }]} />
                 <Text style={styles.legendText}>{e}</Text>
               </View>
             ))}
@@ -229,7 +205,6 @@ export default function InsightsScreen() {
         </View>
       </View>
 
-      {/* Stats Cards */}
       <View style={styles.statsRow}>
         <View style={styles.statCard}>
           <Text style={styles.statTitle}>ストレスレベル</Text>
@@ -249,16 +224,15 @@ export default function InsightsScreen() {
         </View>
       </View>
 
-      {/* Emotion Distribution */}
       <View style={styles.card}>
         <View style={styles.cardHeader}>
           <Text style={styles.title}>感情の分布</Text>
           <Text style={styles.subtitle}>今週記録された感情の内訳</Text>
         </View>
         <View style={styles.distributionGrid}>
-          {emotions.map((emotion) => {
+          {emotions.map((emotion: EmotionType) => {
             const count = emotionStats.emotionTotals?.[emotion] ?? 0;
-            const colorSet = emotionColors[emotion];
+            const colorSet = getNormalColors(emotion);
             return (
               <View key={emotion} style={styles.distributionItem}>
                 <View style={[styles.distributionIcon, { backgroundColor: colorSet.bg }]}>

@@ -1,12 +1,21 @@
 import { NextRequest } from "next/server";
+import { callAnthropic } from "@/lib/anthropic";
+
+interface ChatHistoryItem {
+  role: "user" | "assistant";
+  content: string;
+}
 
 export async function POST(request: NextRequest) {
   try {
     const { message, history } = await request.json();
 
-    // 会話履歴を日本語で整形
-    const conversationHistory = history
-      .map((msg: any) => `${msg.role === "user" ? "ユーザー" : "AI"}: ${msg.content}`)
+    if (!message || typeof message !== "string") {
+      return Response.json({ error: "メッセージが必要です" }, { status: 400 });
+    }
+
+    const conversationHistory = (history as ChatHistoryItem[])
+      .map((msg) => `${msg.role === "user" ? "ユーザー" : "AI"}: ${msg.content}`)
       .join("\n");
 
     const prompt = `
@@ -35,33 +44,15 @@ ${message}
 150文字程度で、温かく前向きな回答をしてください。
 `;
 
-    const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": anthropicApiKey!,
-        "content-type": "application/json",
-        "anthropic-version": "2023-06-01"
-      },
-      body: JSON.stringify({
-        model: "claude-3-haiku-20240307",
-        max_tokens: 512,
-        messages: [
-          { role: "user", content: prompt }
-        ]
-      })
+    const aiText = await callAnthropic({ prompt, maxTokens: 512 });
+    return Response.json({
+      response: aiText || "申し訳ありません。現在AIカウンセラーが応答できません。",
     });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      return new Response(JSON.stringify({ error: errorText }), { status: 500 });
-    }
-
-    const data = await response.json();
-    const aiText = data.content?.[0]?.text || "申し訳ありません。現在AIカウンセラーが応答できません。";
-    return Response.json({ response: aiText });
   } catch (error) {
-    console.error("Error generating chat response:", error);
-    return Response.json({ error: "応答の生成に失敗しました" }, { status: 500 });
+    console.error("Chat API error:", error);
+    return Response.json(
+      { error: "応答の生成に失敗しました" },
+      { status: 500 },
+    );
   }
 }

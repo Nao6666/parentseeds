@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Pressable, Alert, View, Text } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -9,7 +9,6 @@ import {
   MessageSquare,
   TrendingUp,
   LogOut,
-  Trash2,
 } from 'lucide-react-native';
 import RecordScreen from '../screens/RecordScreen';
 import HistoryScreen from '../screens/HistoryScreen';
@@ -19,32 +18,33 @@ import GrowthScreen from '../screens/GrowthScreen';
 import DeleteAccountScreen from '../screens/DeleteAccountScreen';
 import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
 import { colors } from '../theme/colors';
-
-export type AppTabParamList = {
-  Record: undefined;
-  History: undefined;
-  Insights: undefined;
-  Counselor: undefined;
-  Growth: undefined;
-};
-
-export type AppStackParamList = {
-  MainTabs: undefined;
-  DeleteAccount: undefined;
-};
+import type { AppTabParamList, AppStackParamList } from '../types';
 
 const Tab = createBottomTabNavigator<AppTabParamList>();
 const Stack = createNativeStackNavigator<AppStackParamList>();
 
+function CounselorHeaderTitle() {
+  return (
+    <View>
+      <Text style={{ fontSize: 17, fontWeight: '700', color: colors.gray[900] }}>
+        AIカウンセラー
+      </Text>
+      <Text style={{ fontSize: 12, color: colors.gray[500] }}>
+        24時間いつでも相談できます
+      </Text>
+    </View>
+  );
+}
+
 function MainTabs() {
   const { signOut } = useSupabaseAuth();
 
-  const handleSignOut = () => {
+  const handleSignOut = useCallback(() => {
     Alert.alert('ログアウト', 'ログアウトしますか？', [
       { text: 'キャンセル', style: 'cancel' },
       { text: 'ログアウト', onPress: () => signOut() },
     ]);
-  };
+  }, [signOut]);
 
   return (
     <Tab.Navigator
@@ -108,12 +108,7 @@ function MainTabs() {
         component={CounselorScreen}
         options={{
           title: '相談',
-          headerTitle: () => (
-            <View>
-              <Text style={{ fontSize: 17, fontWeight: '700', color: colors.gray[900] }}>AIカウンセラー</Text>
-              <Text style={{ fontSize: 12, color: colors.gray[500] }}>24時間いつでも相談できます</Text>
-            </View>
-          ),
+          headerTitle: CounselorHeaderTitle,
           tabBarIcon: ({ color, size }) => <MessageSquare size={size} color={color} />,
         }}
       />

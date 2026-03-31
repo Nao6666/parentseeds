@@ -1,58 +1,63 @@
-import React from 'react';
+import React, { memo, useCallback } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Check } from 'lucide-react-native';
 import EmotionIcon from './EmotionIcon';
-import { emotions, emotionColors, emotionColorsSelected } from '../lib/constants';
+import { emotions, getNormalColors, getSelectedColors } from '../lib/constants';
 import { colors } from '../theme/colors';
 import { borderRadius, fontSize, spacing } from '../theme/spacing';
+import type { EmotionType } from '../types';
 
 interface EmotionSelectorProps {
-  selectedEmotions: string[];
-  onToggle: (emotion: string) => void;
+  selectedEmotions: EmotionType[];
+  onToggle: (emotion: EmotionType) => void;
 }
 
-export default function EmotionSelector({ selectedEmotions, onToggle }: EmotionSelectorProps) {
+function EmotionSelector({ selectedEmotions, onToggle }: EmotionSelectorProps) {
+  const renderButton = useCallback(
+    (emotion: EmotionType) => {
+      const isSelected = selectedEmotions.includes(emotion);
+      const colorSet = isSelected ? getSelectedColors(emotion) : getNormalColors(emotion);
+
+      return (
+        <Pressable
+          key={emotion}
+          style={[
+            styles.emotionButton,
+            { backgroundColor: colorSet.bg, borderColor: colorSet.border },
+            isSelected && styles.emotionButtonSelected,
+          ]}
+          onPress={() => onToggle(emotion)}
+          accessibilityLabel={`${emotion}${isSelected ? '（選択中）' : ''}`}
+          accessibilityRole="button"
+        >
+          {isSelected && (
+            <View style={styles.checkBadge}>
+              <Check size={10} color={colors.green[600]} />
+            </View>
+          )}
+          <EmotionIcon emotion={emotion} size={24} color={colorSet.text} />
+          <Text style={[styles.emotionLabel, { color: colorSet.text }]}>{emotion}</Text>
+        </Pressable>
+      );
+    },
+    [selectedEmotions, onToggle],
+  );
+
   return (
     <View>
       <View style={styles.grid}>
-        {emotions.map((emotion) => {
-          const isSelected = selectedEmotions.includes(emotion);
-          const colorSet = isSelected ? emotionColorsSelected[emotion] : emotionColors[emotion];
-
-          return (
-            <Pressable
-              key={emotion}
-              style={[
-                styles.emotionButton,
-                {
-                  backgroundColor: colorSet.bg,
-                  borderColor: colorSet.border,
-                },
-                isSelected && styles.emotionButtonSelected,
-              ]}
-              onPress={() => onToggle(emotion)}
-            >
-              {isSelected && (
-                <View style={styles.checkBadge}>
-                  <Check size={10} color={colors.green[600]} />
-                </View>
-              )}
-              <EmotionIcon emotion={emotion} size={24} color={colorSet.text} />
-              <Text style={[styles.emotionLabel, { color: colorSet.text }]}>{emotion}</Text>
-            </Pressable>
-          );
-        })}
+        {emotions.map(renderButton)}
       </View>
       {selectedEmotions.length > 0 && (
         <View style={styles.selectedInfo}>
-          <Text style={styles.selectedText}>
-            選択中: {selectedEmotions.join('、')}
-          </Text>
+          <Text style={styles.selectedText}>選択中: {selectedEmotions.join('、')}</Text>
         </View>
       )}
     </View>
   );
 }
+
+export default memo(EmotionSelector);
 
 const styles = StyleSheet.create({
   grid: {

@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, memo, useCallback } from 'react';
 import { View, Text, Pressable, Image, StyleSheet, Modal, Dimensions } from 'react-native';
 import { Trash2, Lightbulb, X } from 'lucide-react-native';
 import EmotionIcon from './EmotionIcon';
-import { emotionColors } from '../lib/constants';
+import { getNormalColors } from '../lib/constants';
 import { colors } from '../theme/colors';
 import { borderRadius, fontSize, spacing } from '../theme/spacing';
 import type { Entry } from '../types';
@@ -14,33 +14,35 @@ interface EntryCardProps {
   onDelete: (id: string) => void;
 }
 
-export default function EntryCard({ entry, onDelete }: EntryCardProps) {
+function EntryCard({ entry, onDelete }: EntryCardProps) {
   const [viewingImage, setViewingImage] = useState<string | null>(null);
+
+  const openImage = useCallback((url: string) => setViewingImage(url), []);
+  const closeImage = useCallback(() => setViewingImage(null), []);
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.date}>{entry.date}</Text>
-        <Pressable onPress={() => onDelete(entry.id)} hitSlop={8}>
+        <Pressable
+          onPress={() => onDelete(entry.id)}
+          hitSlop={8}
+          accessibilityLabel="記録を削除"
+        >
           <Trash2 size={18} color={colors.gray[400]} />
         </Pressable>
       </View>
 
       <View style={styles.emotionRow}>
         {entry.emotions.map((emotion) => {
-          const colorSet = emotionColors[emotion];
+          const colorSet = getNormalColors(emotion );
           return (
             <View
               key={emotion}
-              style={[
-                styles.badge,
-                { backgroundColor: colorSet?.bg || colors.gray[100], borderColor: colorSet?.border || colors.gray[200] },
-              ]}
+              style={[styles.badge, { backgroundColor: colorSet.bg, borderColor: colorSet.border }]}
             >
-              <EmotionIcon emotion={emotion} size={12} color={colorSet?.text || colors.gray[700]} />
-              <Text style={[styles.badgeText, { color: colorSet?.text || colors.gray[700] }]}>
-                {emotion}
-              </Text>
+              <EmotionIcon emotion={emotion} size={12} color={colorSet.text} />
+              <Text style={[styles.badgeText, { color: colorSet.text }]}>{emotion}</Text>
             </View>
           );
         })}
@@ -51,7 +53,7 @@ export default function EntryCard({ entry, onDelete }: EntryCardProps) {
       {entry.image_urls && entry.image_urls.length > 0 && (
         <View style={styles.imageRow}>
           {entry.image_urls.map((url) => (
-            <Pressable key={url} onPress={() => setViewingImage(url)}>
+            <Pressable key={url} onPress={() => openImage(url)}>
               <Image source={{ uri: url }} style={styles.imageThumb} />
             </Pressable>
           ))}
@@ -70,25 +72,22 @@ export default function EntryCard({ entry, onDelete }: EntryCardProps) {
         </View>
       )}
 
-      {/* Full-screen image viewer */}
       <Modal visible={viewingImage !== null} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <Pressable style={styles.closeButton} onPress={() => setViewingImage(null)}>
+          <Pressable style={styles.closeButton} onPress={closeImage} accessibilityLabel="閉じる">
             <X size={28} color={colors.white} />
           </Pressable>
           {viewingImage && (
-            <Image
-              source={{ uri: viewingImage }}
-              style={styles.fullImage}
-              resizeMode="contain"
-            />
+            <Image source={{ uri: viewingImage }} style={styles.fullImage} resizeMode="contain" />
           )}
-          <Pressable style={styles.modalBackground} onPress={() => setViewingImage(null)} />
+          <Pressable style={styles.modalBackground} onPress={closeImage} />
         </View>
       </Modal>
     </View>
   );
 }
+
+export default memo(EntryCard);
 
 const styles = StyleSheet.create({
   container: {

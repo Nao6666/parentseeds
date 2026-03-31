@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,13 +10,14 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
 import { colors } from '../theme/colors';
 import { borderRadius, fontSize, spacing } from '../theme/spacing';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { AuthStackParamList } from '../types';
 
 type Props = {
-  navigation: NativeStackNavigationProp<any>;
+  navigation: NativeStackNavigationProp<AuthStackParamList, 'Login'>;
 };
 
 export default function LoginScreen({ navigation }: Props) {
@@ -26,7 +27,7 @@ export default function LoginScreen({ navigation }: Props) {
   const [isSignUp, setIsSignUp] = useState(false);
   const [message, setMessage] = useState('');
 
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async () => {
     setMessage('');
     if (isSignUp) {
       const err = await signUp(email, password);
@@ -35,12 +36,17 @@ export default function LoginScreen({ navigation }: Props) {
       const err = await signIn(email, password);
       if (!err) setMessage('ログイン成功');
     }
-  };
+  }, [isSignUp, email, password, signUp, signIn]);
 
-  const handleGoogleSignIn = async () => {
+  const handleGoogleSignIn = useCallback(async () => {
     setMessage('');
     await signInWithGoogle();
-  };
+  }, [signInWithGoogle]);
+
+  const toggleMode = useCallback(() => {
+    setIsSignUp((prev) => !prev);
+    setMessage('');
+  }, []);
 
   return (
     <KeyboardAvoidingView
@@ -80,9 +86,7 @@ export default function LoginScreen({ navigation }: Props) {
             {loading ? (
               <ActivityIndicator color={colors.white} />
             ) : (
-              <Text style={styles.submitText}>
-                {isSignUp ? '新規登録' : 'ログイン'}
-              </Text>
+              <Text style={styles.submitText}>{isSignUp ? '新規登録' : 'ログイン'}</Text>
             )}
           </Pressable>
 
@@ -97,12 +101,7 @@ export default function LoginScreen({ navigation }: Props) {
           </Pressable>
 
           <View style={styles.links}>
-            <Pressable
-              onPress={() => {
-                setIsSignUp(!isSignUp);
-                setMessage('');
-              }}
-            >
+            <Pressable onPress={toggleMode}>
               <Text style={styles.linkText}>
                 {isSignUp ? 'アカウントをお持ちの方はこちら' : '新規登録はこちら'}
               </Text>
